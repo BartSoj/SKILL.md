@@ -1,0 +1,21 @@
+{
+    "name": "SKILL.md",
+    "owner": {
+        "name": "Bartosz Sójka",
+        "email": "bartsoj@gmail.com"
+    },
+    "metadata": {
+        "description": "Set of skills for spec driven development",
+        "version": "1.0.0"
+    },
+    "plugins": [
+        {
+            "name": "SKILL.md",
+            "source": "./",
+            "description": "Set of skills for spec driven development",
+            "version": "1.0.0",
+            "keywords": ["claude", "SDD", "skill", "software development"],
+            "category": "productivity"
+        }
+    ]
+}
