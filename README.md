@@ -21,6 +21,8 @@ claude plugin install SKILL.md@SKILL.md
 | `/IMPLEMENTATION.md` | Executes a plan using TDD, documents what was built |
 | `/CODE_REVIEW.md` | Reviews code changes via 6 parallel specialist subagents |
 | `/VERIFICATION.md` | QA-tests the running application, captures evidence |
+| `/SKILL_CREATOR.md` | Designs and creates a new skill following project conventions |
+| `/AGENT.md` | Designs and creates an orchestration agent for a multi-skill workflow |
 
 ## Workflow
 
@@ -100,3 +102,15 @@ claude plugin install SKILL.md@SKILL.md
 **Autonomous-agent compatible.** Skills need no human input during execution. They work headless, CI-triggered, or manual. Start the agent, get the file.
 
 **Produce → read → adjust → feed forward.** You never read agent logs or chat history. Each output file is self-contained and becomes input to the next skill. The trail of documents is the project history.
+
+## Agents
+
+| Agent | Description |
+|-------|-------------|
+| `sdd-orchestrator` | Executes the full SDD workflow autonomously — splits work, generates specs in parallel, then runs plan → implement → review → verify for each unit with feedback loops |
+
+Agents live in `agents/{agent-name}/AGENT.md`. They spawn Claude Code instances via CLI to invoke skills, read output files, resolve open questions, and manage retries. Create new orchestration agents with `/AGENT.md`.
+
+## Meta-Skills
+
+`/SKILL_CREATOR.md` and `/AGENT.md` are meta-skills — they create new skills and orchestration agents that follow project conventions. Use them to extend the workflow with new capabilities.
