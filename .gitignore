@@ -1,0 +1,14 @@
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+*.swp
+*.swo
+*~
+
+# Node (if ever needed)
+node_modules/
