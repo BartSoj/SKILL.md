@@ -58,7 +58,6 @@ Each work unit MUST satisfy ALL of these:
 
 ## Output Format
 
-Save the full result to a file called `SPLIT_WORK.md` in the project root.
 Use the following structure:
 
 ```markdown
