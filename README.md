@@ -22,7 +22,7 @@ claude plugin install SKILL.md@SKILL.md
 | `/CODE_REVIEW.md` | Reviews code changes via 6 parallel specialist subagents |
 | `/VERIFICATION.md` | QA-tests the running application, captures evidence |
 | `/SKILL_CREATOR.md` | Designs and creates a new skill following project conventions |
-| `/AGENT.md` | Designs and creates an orchestration agent for a multi-skill workflow |
+| `/ORCHESTRATOR_CREATOR.md` | Designs and creates an orchestration agent for a multi-skill workflow |
 
 ## Workflow
 
@@ -109,8 +109,8 @@ claude plugin install SKILL.md@SKILL.md
 |-------|-------------|
 | `sdd-orchestrator` | Executes the full SDD workflow autonomously — splits work, generates specs in parallel, then runs plan → implement → review → verify for each unit with feedback loops |
 
-Agents live in `agents/{agent-name}/AGENT.md`. They spawn Claude Code instances via CLI to invoke skills, read output files, resolve open questions, and manage retries. Create new orchestration agents with `/AGENT.md`.
+Agents live in `agents/{agent-name}.md`. They spawn Claude Code instances via CLI to invoke skills, read output files, resolve open questions, and manage retries. Create new orchestration agents with `/ORCHESTRATOR_CREATOR.md`.
 
 ## Meta-Skills
 
-`/SKILL_CREATOR.md` and `/AGENT.md` are meta-skills — they create new skills and orchestration agents that follow project conventions. Use them to extend the workflow with new capabilities.
+`/SKILL_CREATOR.md` and `/ORCHESTRATOR_CREATOR.md` are meta-skills — they create new skills and orchestration agents that follow project conventions. Use them to extend the workflow with new capabilities.

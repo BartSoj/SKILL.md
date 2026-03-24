@@ -1,6 +1,6 @@
 ---
-name: AGENT.md
-description: Design and create an orchestration agent that autonomously executes a multi-skill workflow. Use when asked to create an orchestrator, build a pipeline agent, design a workflow agent, automate a skill sequence, or produce an AGENT.md.
+name: ORCHESTRATOR_CREATOR.md
+description: Design and create an orchestration agent that autonomously executes a multi-skill workflow. Use when asked to create an orchestrator, build a pipeline agent, design a workflow agent, automate a skill sequence, or produce an ORCHESTRATOR_CREATOR.md.
 ---
 
 # Task: Design and Create an Orchestration Agent
