@@ -104,24 +104,14 @@ Be explicit about what success looks like (a verdict, an empty issues section, a
 **4. Prompt patterns.** Design the prompt template for each skill invocation. Every prompt needs three things:
 
 ```
-/{SKILL_NAME}.md
-
-{Input references — file paths to read}
-
-{Additional context — feedback from previous phases, constraints}
-
-Write the output to {output_path}.
+/{SKILL_NAME}.md {Input references — file paths to read} {Additional context — feedback from previous phases, constraints} Write the output to {output_path}.
 ```
 
 Keep prompts focused. Reference file paths rather than embedding content — the skill agent has filesystem access. Embed inline only when content is short (<50 lines), is feedback that doesn't exist as a file, or is a specific excerpt from a larger file.
 
-For feedback loops, include failure context inline:
+For feedback loops, include failure context inline using XML tags on the same line:
 ```
-The previous implementation was reviewed and these issues were found:
-
-<issues>
-{paste from the review output}
-</issues>
+/{SKILL_NAME}.md The previous implementation was reviewed and these issues were found: <issues>{paste from the review output}</issues> Read the plan from {path}. Fix the issues and write to {output_path}.
 ```
 
 ### Phase 3: Write the Agent
@@ -232,6 +222,7 @@ unset CLAUDECODE && claude -p "<prompt>" --permission-mode bypassPermissions
 ```
 - Always `unset CLAUDECODE` — prevents session conflicts
 - Always `--permission-mode bypassPermissions` — prevents interactive hangs
+- **Skill name and instructions on the same line** — a newline after the skill name prevents triggering. Correct: `"/PLAN.md Read the spec from ..."`. Wrong: `"/PLAN.md\nRead the spec from ..."`
 - Always specify input and output file paths in the prompt
 - Never parse stdout for data
 

@@ -2,7 +2,7 @@
 name: sdd-orchestrator
 description: Autonomously execute the full spec-driven development workflow from requirements to verified code. Use when asked to "run the full workflow", "build this project", "execute SDD pipeline", "implement from scratch", "run all skills end to end", or "orchestrate the build".
 model: opus
-tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
+tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch, Skill
 ---
 
 # SDD Orchestrator — Autonomous Skill Execution Agent
@@ -83,10 +83,7 @@ unset CLAUDECODE && claude -p "<prompt>" --permission-mode bypassPermissions
 The prompt tells the agent which skill to run and where to write the output. Example:
 
 ```bash
-unset CLAUDECODE && claude -p "/PLAN.md
-
-Read the specification from sdd/U01/SPEC.md.
-Write the plan to sdd/U01/PLAN.md." --permission-mode bypassPermissions
+unset CLAUDECODE && claude -p "/PLAN.md Read the specification from sdd/U01/SPEC.md. Write the plan to sdd/U01/PLAN.md." --permission-mode bypassPermissions
 ```
 
 **Required flags:**
@@ -99,6 +96,7 @@ Write the plan to sdd/U01/PLAN.md." --permission-mode bypassPermissions
 
 **Rules:**
 - **Always `unset CLAUDECODE`** before invoking. This prevents session conflicts when called from within an existing Claude Code session. Easy to miss, causes cryptic failures.
+- **Keep the skill name and instructions on the same line.** The prompt must start with `/SKILL_NAME.md ` followed by instructions on the same line, with no newline after the skill name. A newline immediately after the skill name prevents the skill from being triggered. Correct: `"/PLAN.md Read the spec from ..."`. Wrong: `"/PLAN.md\nRead the spec from ..."`.
 - **Always specify input and output file paths** in the prompt. The child agent reads from the filesystem and writes to a specific file.
 - **Do not parse stdout.** Stdout may contain progress messages and formatting. Check whether the expected output file exists after the process completes.
 - **Set reasonable timeouts.** Use the Bash tool's timeout parameter: 600000ms (10 min) for simple skills, up to 3600000ms (60 min) for IMPLEMENTATION.
@@ -149,14 +147,7 @@ def run_spec(unit_id: str, unit_description: str, spec_deps_context: str) -> dic
     output_file = Path(f"sdd/{unit_id}/SPEC.md")
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    prompt = f"""/SPEC.md
-
-Work unit to specify:
-{unit_description}
-
-{spec_deps_context}
-
-Write the specification to sdd/{unit_id}/SPEC.md."""
+    prompt = f"""/SPEC.md Work unit to specify: {unit_description} {spec_deps_context} Write the specification to sdd/{unit_id}/SPEC.md."""
 
     cmd = [
         "claude", "-p", prompt,
@@ -236,13 +227,7 @@ Adapt this template for each batch. Populate the `units` list with the actual un
 1. Create the `sdd/` directory.
 2. Invoke the SPLIT_WORK skill:
    ```bash
-   unset CLAUDECODE && claude -p "/SPLIT_WORK.md
-
-   <requirements>
-   {paste or reference the project requirements / architecture documents}
-   </requirements>
-
-   Write the output to sdd/SPLIT_WORK.md." --permission-mode bypassPermissions
+   unset CLAUDECODE && claude -p "/SPLIT_WORK.md <requirements>{paste or reference the project requirements / architecture documents}</requirements> Write the output to sdd/SPLIT_WORK.md." --permission-mode bypassPermissions
    ```
 3. Read `sdd/SPLIT_WORK.md`.
 4. **Check for Open Questions.** If the output has unresolved questions in a checklist (`- [ ]`):
@@ -305,10 +290,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 
 1. Invoke:
    ```bash
-   unset CLAUDECODE && claude -p "/PLAN.md
-
-   Read the specification from sdd/{unit_id}/SPEC.md.
-   Write the plan to sdd/{unit_id}/PLAN.md." --permission-mode bypassPermissions
+   unset CLAUDECODE && claude -p "/PLAN.md Read the specification from sdd/{unit_id}/SPEC.md. Write the plan to sdd/{unit_id}/PLAN.md." --permission-mode bypassPermissions
    ```
 2. Read `sdd/{unit_id}/PLAN.md`.
 3. Check for Open Questions → resolve by editing.
@@ -318,10 +300,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 
 1. Invoke:
    ```bash
-   unset CLAUDECODE && claude -p "/IMPLEMENTATION.md
-
-   Read the plan from sdd/{unit_id}/PLAN.md.
-   Write the implementation report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
+   unset CLAUDECODE && claude -p "/IMPLEMENTATION.md Read the plan from sdd/{unit_id}/PLAN.md. Write the implementation report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
    ```
    Use a long timeout (up to 60 minutes) — implementation involves writing code and running tests.
 2. Read `sdd/{unit_id}/IMPLEMENTATION.md`.
@@ -335,9 +314,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 
 1. Invoke:
    ```bash
-   unset CLAUDECODE && claude -p "/CODE_REVIEW.md
-
-   Write the review to sdd/{unit_id}/CODE_REVIEW.md." --permission-mode bypassPermissions
+   unset CLAUDECODE && claude -p "/CODE_REVIEW.md Write the review to sdd/{unit_id}/CODE_REVIEW.md." --permission-mode bypassPermissions
    ```
    The CODE_REVIEW skill auto-discovers changes from git state, so no explicit input file is needed.
 2. Read `sdd/{unit_id}/CODE_REVIEW.md`.
@@ -351,12 +328,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 
 1. Invoke:
    ```bash
-   unset CLAUDECODE && claude -p "/VERIFICATION.md
-
-   Verify the following scenarios from the specification:
-   {extract acceptance criteria / test scenarios from sdd/{unit_id}/SPEC.md}
-
-   Write the verification report to sdd/{unit_id}/VERIFICATION.md." --permission-mode bypassPermissions
+   unset CLAUDECODE && claude -p "/VERIFICATION.md Verify the following scenarios from the specification: {extract acceptance criteria / test scenarios from sdd/{unit_id}/SPEC.md} Write the verification report to sdd/{unit_id}/VERIFICATION.md." --permission-mode bypassPermissions
    ```
 2. Read `sdd/{unit_id}/VERIFICATION.md`.
 3. **Check the verdict:**
@@ -388,32 +360,13 @@ When a later phase reveals problems, you go back to an earlier phase. These are 
 Start a **new** Claude Code instance with the feedback incorporated into the prompt:
 
 ```bash
-unset CLAUDECODE && claude -p "/PLAN.md
-
-The previous plan (sdd/{unit_id}/PLAN.md) was implemented but the implementation
-encountered the following problems:
-
-<problems>
-{paste the relevant section from IMPLEMENTATION.md or CODE_REVIEW.md}
-</problems>
-
-Read the specification from sdd/{unit_id}/SPEC.md.
-Address the problems above and write an updated plan to sdd/{unit_id}/PLAN.md." --permission-mode bypassPermissions
+unset CLAUDECODE && claude -p "/PLAN.md The previous plan (sdd/{unit_id}/PLAN.md) was implemented but the implementation encountered the following problems: <problems>{paste the relevant section from IMPLEMENTATION.md or CODE_REVIEW.md}</problems> Read the specification from sdd/{unit_id}/SPEC.md. Address the problems above and write an updated plan to sdd/{unit_id}/PLAN.md." --permission-mode bypassPermissions
 ```
 
 Similarly for going back to IMPLEMENTATION:
 
 ```bash
-unset CLAUDECODE && claude -p "/IMPLEMENTATION.md
-
-The previous implementation was reviewed and the following issues were found:
-
-<issues>
-{paste Critical and High issues from CODE_REVIEW.md}
-</issues>
-
-Read the plan from sdd/{unit_id}/PLAN.md.
-Fix the issues above and write the implementation report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
+unset CLAUDECODE && claude -p "/IMPLEMENTATION.md The previous implementation was reviewed and the following issues were found: <issues>{paste Critical and High issues from CODE_REVIEW.md}</issues> Read the plan from sdd/{unit_id}/PLAN.md. Fix the issues above and write the implementation report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
 ```
 
 ### Retry limits
