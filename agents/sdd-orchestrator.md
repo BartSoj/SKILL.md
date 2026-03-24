@@ -72,13 +72,9 @@ Create the `sdd/` directory at the start. Create unit subdirectories as needed.
 
 You spawn Claude Code instances to execute skills. Each instance is a separate process — it has no memory of your context. It communicates through files only.
 
-### Read the reference docs first
+### Sequential Invocation (Bash)
 
-Before your first invocation, read the full reference documents:
-- `agents/orchestrator/references/claude-code-cli.md` — CLI flags, session management, rules
-- `agents/orchestrator/references/claude-code-python.md` — parallel execution patterns, worker functions, error handling
-
-### Sequential invocation (Bash) — use for PLAN, IMPLEMENTATION, CODE_REVIEW, VERIFICATION
+Use for PLAN, IMPLEMENTATION, CODE_REVIEW, VERIFICATION — any skill that must run one at a time.
 
 ```bash
 unset CLAUDECODE && claude -p "<prompt>" --permission-mode bypassPermissions
@@ -93,17 +89,36 @@ Read the specification from sdd/U01/SPEC.md.
 Write the plan to sdd/U01/PLAN.md." --permission-mode bypassPermissions
 ```
 
-Rules:
-- **Always `unset CLAUDECODE`** before invoking. This prevents session conflicts.
-- **Always use `--permission-mode bypassPermissions`** to prevent interactive prompts that hang the process.
-- **Always specify input and output file paths** in the prompt. The child agent reads its input from the filesystem and writes its output to a specific file.
-- **Use `--model opus`** for complex skills (SPEC, PLAN, CODE_REVIEW). Use `--model sonnet` for simpler tasks if needed.
-- **Do not parse stdout.** Check whether the expected output file exists after the process completes.
+**Required flags:**
+- `-p <prompt>` — non-interactive single-shot mode. The agent runs once and exits.
+- `--permission-mode bypassPermissions` — suppresses interactive permission dialogs that hang the subprocess.
+
+**Optional flags:**
+- `--model <model>` — override the model per invocation (`opus`, `sonnet`, `haiku`). Use `opus` for complex skills (SPEC, PLAN, CODE_REVIEW), `sonnet` for simpler tasks.
+- `--add-dir <path>` — give the agent read/write access to an additional directory (repeatable).
+
+**Rules:**
+- **Always `unset CLAUDECODE`** before invoking. This prevents session conflicts when called from within an existing Claude Code session. Easy to miss, causes cryptic failures.
+- **Always specify input and output file paths** in the prompt. The child agent reads from the filesystem and writes to a specific file.
+- **Do not parse stdout.** Stdout may contain progress messages and formatting. Check whether the expected output file exists after the process completes.
 - **Set reasonable timeouts.** Use the Bash tool's timeout parameter: 600000ms (10 min) for simple skills, up to 3600000ms (60 min) for IMPLEMENTATION.
+- **Prefer file-based output.** Tell the agent to write results to a specific file path. Stdout is a debug channel, not the data channel.
 
-### Parallel invocation (Python) — use for SPEC generation
+### Continue Previous Session
 
-When multiple units in the same tier need SPEC files, write and run a Python script. This launches multiple Claude Code instances concurrently.
+Rarely needed. The default is always a new conversation. Use `-c` only when:
+- The output file was partially written and you want the agent to finish it
+- The agent hit an environment issue (e.g., missing dependency) that you fixed and want it to retry
+
+```bash
+unset CLAUDECODE && claude -c -p "The missing package has been installed. Please retry and write the output to sdd/U01/PLAN.md." --permission-mode bypassPermissions
+```
+
+The `-c` flag continues the most recent conversation from the same working directory.
+
+### Parallel Invocation (Python)
+
+Use for SPEC generation when multiple units in the same tier need specs simultaneously. Write a Python script, execute it, and wait for completion.
 
 Write the script to a temporary file (e.g., `sdd/run_specs.py`), then execute it:
 
@@ -111,18 +126,26 @@ Write the script to a temporary file (e.g., `sdd/run_specs.py`), then execute it
 #!/usr/bin/env python3
 """Parallel SPEC generation for independent work units."""
 import os
+import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-def claude_env():
+
+def claude_env() -> dict[str, str]:
+    """Return a clean environment for subprocess claude calls.
+
+    Strips CLAUDECODE to prevent session conflicts when spawning
+    claude from within an existing Claude Code session.
+    """
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
     return env
 
-def run_spec(unit_id, unit_description, spec_deps_context):
-    """Run SPEC skill for one work unit."""
+
+def run_spec(unit_id: str, unit_description: str, spec_deps_context: str) -> dict:
+    """Run SPEC skill for one work unit. Returns a status dict (never raises)."""
     output_file = Path(f"sdd/{unit_id}/SPEC.md")
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -150,14 +173,23 @@ Write the specification to sdd/{unit_id}/SPEC.md."""
         elapsed = time.time() - t0
 
         if result.returncode != 0:
+            output_file.with_suffix(".error.txt").write_text(
+                f"Exit code: {result.returncode}\n\n{result.stderr[:2000]}")
             return {"id": unit_id, "status": "failed", "elapsed": elapsed,
                     "error": result.stderr[:500]}
         if not output_file.exists():
+            output_file.with_suffix(".debug.txt").write_text(
+                result.stdout[:5000] if result.stdout else "(empty)")
             return {"id": unit_id, "status": "no_output", "elapsed": elapsed}
         return {"id": unit_id, "status": "done", "elapsed": elapsed}
 
     except subprocess.TimeoutExpired:
         return {"id": unit_id, "status": "timeout", "elapsed": 1200}
+
+
+# --- Preflight ---
+if not shutil.which("claude"):
+    raise SystemExit("Error: 'claude' CLI not found on PATH.")
 
 # --- Define units to spec ---
 units = [
@@ -165,6 +197,7 @@ units = [
     # ("U01", "unit description...", "dependency specs context..."),
 ]
 
+# --- Execute in parallel ---
 with ThreadPoolExecutor(max_workers=min(len(units), 6)) as pool:
     futures = {}
     for unit_id, desc, deps_ctx in units:
@@ -175,19 +208,24 @@ with ThreadPoolExecutor(max_workers=min(len(units), 6)) as pool:
         uid = futures[future]
         status = future.result()
         print(f"  {uid}: {status['status']} ({status.get('elapsed', 0):.0f}s)")
+
+# --- Report failures ---
+failed = [f.result() for f in futures if f.result()["status"] != "done"]
+if failed:
+    print(f"\n{len(failed)} agent(s) failed:")
+    for r in failed:
+        print(f"  {r['id']}: {r['status']} — {r.get('error', 'see debug files')}")
 ```
 
 Adapt this template for each batch. Populate the `units` list with the actual unit IDs, descriptions, and dependency context.
 
-### When to use `-c` (continue conversation)
-
-Rarely. The default is always a new conversation. Use `-c` only when:
-- The output file was partially written and you want the agent to finish it
-- The agent hit an environment issue (e.g., missing dependency) that you fixed and want it to retry
-
-```bash
-unset CLAUDECODE && claude -c -p "The missing package has been installed. Please retry and write the output to sdd/U01/PLAN.md." --permission-mode bypassPermissions
-```
+**Parallel execution rules:**
+- **Each worker is self-contained** — receives all inputs as arguments, writes to its own output path, returns a status dict. No shared mutable state.
+- **Workers never raise** — they catch all exceptions and return a status dict. The orchestrator aggregates statuses without try/except.
+- **Always measure elapsed time** — essential for understanding cost and identifying slow agents.
+- **Save debug artifacts on failure** — `.error.txt` for stderr on crashes, `.debug.txt` for stdout when output is missing.
+- **`max_workers`** — set to `min(len(units), 6)`. Reduce if you hit API rate limits.
+- **Use `as_completed`** over `map` — reports progress as agents finish, not in submission order.
 
 ---
 

@@ -7,7 +7,7 @@ description: Design and create an orchestration agent that autonomously executes
 
 ## Objective
 
-Given a set of skills and a workflow describing how they connect, produce a complete orchestration agent — an `AGENT.md` file and supporting reference files — that can autonomously execute the workflow end-to-end by spawning Claude Code instances, reading their output files, making decisions, and managing feedback loops. The agent never does the skill's job. It invokes, inspects, decides, and proceeds.
+Given a set of skills and a workflow describing how they connect, produce an orchestration agent as a single flat markdown file — `agents/{agent-name}.md` — that can autonomously execute the workflow end-to-end by spawning Claude Code instances, reading their output files, making decisions, and managing feedback loops. The agent never does the skill's job. It invokes, inspects, decides, and proceeds.
 
 ---
 
@@ -126,7 +126,9 @@ The previous implementation was reviewed and these issues were found:
 
 ### Phase 3: Write the Agent
 
-Create the `AGENT.md` file with YAML frontmatter and system prompt. Read `references/claude-code-cli.md` and `references/claude-code-python.md` before writing — they contain the exact invocation patterns to include.
+Create a single flat file at `agents/{agent-name}.md` with YAML frontmatter and system prompt. Agents are single markdown files directly in the `agents/` directory — the filename (minus `.md`) becomes the agent name. There is no subdirectory and no separate `references/` folder. All reference material (CLI invocation patterns, Python parallel patterns) must be inlined directly in the agent's body.
+
+Read `references/claude-code-cli.md` and `references/claude-code-python.md` from this skill's directory — they contain the invocation patterns to inline into the agent.
 
 **Frontmatter:**
 
@@ -139,7 +141,7 @@ tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 ---
 ```
 
-- `name` — lowercase, hyphenated identifier
+- `name` — lowercase, hyphenated identifier. Must match the filename: `agents/{name}.md`
 - `description` — action verb + 3-5 trigger phrases. This is how the plugin matches user intent.
 - `model` — `opus` for orchestration agents (strong reasoning for decisions)
 - `tools` — at minimum: `Bash`, `Read`, `Edit`, `Write`, `Glob`, `Grep`
@@ -169,9 +171,9 @@ The body follows this structure. Every section is important — omitting one pro
 
 ## How to Invoke Skills
 
-{CLI patterns for sequential. Python patterns for parallel.
- Reference the companion docs: claude-code-cli.md and claude-code-python.md
- in the agent's own references/ directory.}
+{CLI patterns for sequential invocation — inlined with full flag reference.
+ Python patterns for parallel invocation — inlined with ThreadPoolExecutor
+ template, worker function pattern, environment isolation, and failure handling.}
 
 ---
 
@@ -264,18 +266,14 @@ Error handling:
 
 ### Phase 4: Validate
 
-Place the companion reference docs in the agent's directory:
+Verify the agent file is at the correct location:
 
 ```
 agents/
-  {agent-name}/
-    AGENT.md
-    references/
-      claude-code-cli.md
-      claude-code-python.md
+  {agent-name}.md               # Single flat file, no subdirectory
 ```
 
-Copy `claude-code-cli.md` and `claude-code-python.md` from this skill's `references/` directory into the new agent's `references/` directory. These are always-present companion documents that every orchestration agent needs.
+Verify that CLI and Python invocation patterns are fully inlined in the "How to Invoke Skills" section — the agent must be self-contained with no external reference dependencies.
 
 Then validate the agent against the quality checklist.
 
@@ -290,7 +288,7 @@ Then validate the agent against the quality checklist.
 
 ## Output Format
 
-The skill produces an `AGENT.md` file in `agents/{agent-name}/AGENT.md`, plus the two companion reference docs copied to `agents/{agent-name}/references/`.
+The skill produces a single flat file at `agents/{agent-name}.md`. The filename (minus `.md`) is the agent name. No subdirectory, no separate reference files — everything is inlined.
 
 ```markdown
 ---
@@ -320,7 +318,9 @@ tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 
 ## How to Invoke Skills
 
-{CLI and Python patterns, referencing companion docs}
+{CLI invocation patterns — inlined with full flag reference, environment isolation,
+ session continuation. Python parallel patterns — inlined with ThreadPoolExecutor
+ template, worker function, failure handling, debug artifacts.}
 
 ---
 
@@ -373,12 +373,12 @@ tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 
 ### In scope
 
-- Designing and writing a complete orchestration agent definition (`AGENT.md`)
+- Designing and writing a complete orchestration agent as a single flat file (`agents/{name}.md`)
 - Mapping workflows into phases with parallel/sequential classification
 - Designing decision trees, feedback loops, and retry bounds
 - Defining file organization for orchestration output
-- Copying companion reference docs (`claude-code-cli.md`, `claude-code-python.md`) into the agent's directory
-- Including all universal patterns (CLI invocation, output inspection, error handling)
+- Inlining CLI and Python invocation patterns from `references/claude-code-cli.md` and `references/claude-code-python.md` into the agent
+- Including all universal patterns (output inspection, open question resolution, error handling)
 
 ### Out of scope
 
@@ -393,7 +393,9 @@ tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 
 Before the agent is ready, verify:
 
-- [ ] `AGENT.md` has valid YAML frontmatter with `name`, `description` (action verb + 3-5 triggers), `model`, and `tools`
+- [ ] Agent is a single flat file at `agents/{name}.md` — no subdirectory, no separate reference files
+- [ ] Filename (minus `.md`) matches the `name` field in frontmatter
+- [ ] Frontmatter has `name`, `description` (action verb + 3-5 triggers), `model`, and `tools`
 - [ ] Identity paragraph states what the agent does and what it never does
 - [ ] Workflow overview has an ASCII diagram showing all phases and feedback loops
 - [ ] File organization specifies exact paths for every output file
@@ -403,8 +405,7 @@ Before the agent is ready, verify:
 - [ ] Every feedback loop has a defined trigger, target phase, and context to carry
 - [ ] Retry limits are defined (recommended: 3) and blocked-item behavior is specified
 - [ ] Complete execution flow covers every branch including retries and blocked items
-- [ ] Companion docs (`claude-code-cli.md`, `claude-code-python.md`) are copied to the agent's `references/` directory
-- [ ] "How to Invoke Skills" references the companion docs
+- [ ] CLI and Python invocation patterns are fully inlined in the agent (not in separate reference files)
 - [ ] Open question resolution process is defined
 - [ ] Error handling covers: process failure, missing output, infinite loops
 - [ ] "What You Never Do" prevents the orchestrator from doing skill work itself
