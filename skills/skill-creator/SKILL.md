@@ -1,44 +1,47 @@
 ---
 name: SKILL_CREATOR.md
-description: Design and create a new skill following SDD conventions. Use when asked to create a skill, design a new skill, write a skill definition, build a SKILL.md, or scaffold a skill from requirements.
+description: Design and create a new skill, or refine an existing one, following SDD conventions. Use when asked to create a skill, design a new skill, write a skill definition, build a SKILL.md, scaffold a skill from requirements, improve an existing skill, or refine a skill's structure.
 ---
 
 # Task: Design and Create a New Skill
 
 ## Objective
 
-Given a description of what a skill should do, produce a complete skill directory — a `SKILL.md` file and any supporting reference files — that follows project conventions, works with autonomous agents, produces self-contained document output with trackable frontmatter, and never requires human interaction during execution. The result is a skill that an agent can invoke to produce a structured output file from start to finish.
+Given a description of what a skill should do, produce or refine a complete skill directory — a `SKILL.md` file and any supporting reference files — that follows project conventions, works with autonomous agents, produces self-contained document output with trackable frontmatter, and never requires human interaction during execution. When refining an existing skill, preserve what works, adapt to its established structure and references, and make targeted improvements rather than forcing a rewrite into a rigid template. The result is a skill that an agent can invoke to produce a structured output file from start to finish.
 
 ---
 
 ## Inputs
 
-1. **Skill requirements** (required) — what the skill should do, what it produces, what triggers it. Can be a description, user stories, or a reference to an existing workflow phase.
-2. **Workflow context** (optional) — where this skill fits in a larger pipeline. What skills run before it (providing input), what skills run after it (consuming output). This informs the input/output contracts.
-3. **Existing skills** (auto-discovered) — read existing skills in `skills/*/SKILL.md` to understand conventions, voice, and patterns in use. Match their style.
+1. **Skill requirements** (required) — what the skill should do, what it produces, what triggers it. Can be a description, user stories, a reference to an existing workflow phase, or feedback on an existing skill to refine.
+2. **Existing skill directory** (auto-discovered) — if refining an existing skill, read the current `SKILL.md` and all files in `references/` to understand the skill's established structure, conventions, and content before making changes.
+3. **Workflow context** (optional) — where this skill fits in a larger pipeline. What skills run before it (providing input), what skills run after it (consuming output). This informs the input/output contracts.
+4. **Existing skills** (auto-discovered) — read existing skills in `skills/*/SKILL.md` to understand conventions, voice, and patterns in use. Match their style.
 
 ---
 
 ## Workflow
 
-Skill creation follows three phases: design, write, and validate.
+Skill creation or refinement follows three phases: design, write, and validate.
 
 ### Phase 1: Design
 
-Before writing anything, make these design decisions:
+Before writing anything, make these design decisions. If refining an existing skill, start by reading its current `SKILL.md` and all files in its `references/` directory to understand the established structure.
 
-**1. Name and output file.** Choose the output filename — always `CAPITALIZED_WITH_UNDERSCORES.md`. The name should clearly identify what the document is (e.g., `SPEC.md`, `CODE_REVIEW.md`, `DEPLOYMENT_PLAN.md`). This becomes the `name` field in frontmatter.
+**1. New or refine?** Determine whether this is a new skill or a refinement of an existing one. If refining, inventory what already exists — the current sections, reference files, conventions, and what's working well. The goal is targeted improvement, not a rewrite into a canonical template. Preserve the skill's existing structure and voice where they serve the skill's purpose.
 
-**2. Folder name.** Choose the skill's directory name under `skills/` — lowercase, hyphenated (e.g., `code-review`, `deployment-plan`). This is how the skill is referenced in the plugin system.
+**2. Name and output file.** Choose the output filename — always `CAPITALIZED_WITH_UNDERSCORES.md`. The name should clearly identify what the document is (e.g., `SPEC.md`, `CODE_REVIEW.md`, `DEPLOYMENT_PLAN.md`). This becomes the `name` field in frontmatter. If refining, keep the existing name unless explicitly asked to change it.
 
-**3. Workflow or Rules (or both).** Decide the core structure:
+**3. Folder name.** Choose the skill's directory name under `skills/` — lowercase, hyphenated (e.g., `code-review`, `deployment-plan`). This is how the skill is referenced in the plugin system.
+
+**4. Workflow or Rules (or both).** Decide the core structure:
 - **Workflow** — if the skill follows a sequential process with distinct phases (explore → analyze → write). Use when the order of operations matters.
 - **Rules** — if the skill enforces properties the output must satisfy, regardless of how it gets there. Use when the constraints matter more than the process.
 - **Both** — a workflow for the process and rules for output constraints. Common for skills that have a defined process but also need to guarantee output properties.
 
 This is a judgment call. Look at the skill's nature: does it feel more like "follow these steps" or "satisfy these properties"? When in doubt, lean toward guidelines with clear principles rather than rigid step-by-step instructions.
 
-**4. Subagent decomposition.** Decide if the skill needs subagents:
+**5. Subagent decomposition.** Decide if the skill needs subagents:
 - Does it span multiple independent analysis dimensions? → subagents
 - Can work be parallelized across independent items? → subagents
 - Would doing everything inline overwhelm the agent's context? → subagents
@@ -46,17 +49,19 @@ This is a judgment call. Look at the skill's nature: does it feel more like "fol
 
 If using subagents, design each one as a specialist with its own reference file in `references/`.
 
-**5. Output strictness.** Decide how strict the output template should be:
+**6. Output strictness.** Decide how strict the output template should be:
 - **Strict** — when the output is consumed by another skill or aggregated from subagents. Every section mandatory, exact heading structure.
 - **Flexible** — when the output should adapt to the problem. Define what must be communicated, not the exact structure.
 
-**6. Frontmatter fields.** Design the YAML frontmatter for the output file. Include common tracking fields plus skill-specific fields (see Output Frontmatter section below).
+**7. Frontmatter fields.** Design the YAML frontmatter for the output file. Include common tracking fields plus skill-specific fields (see Output Frontmatter section below).
+
+**8. Reference file audit (refinement only).** If refining an existing skill, audit its `references/` directory. Do not create a new SKILL.md section that duplicates content already covered by a reference file. Conversely, if a reference file is outdated, irrelevant, or contradicts the refinement goals, update or remove it rather than working around it. The reference files and SKILL.md should form a coherent whole without redundancy.
 
 ### Phase 2: Write
 
-Create the skill files following the conventions below. Read the official skill writing guide at `references/official-skill-guide.md` for structural patterns and progressive disclosure rules.
+Create or update the skill files following the conventions below. Read the official skill writing guide at `references/official-skill-guide.md` for structural patterns and progressive disclosure rules.
 
-Write the `SKILL.md` following this structure:
+**For new skills**, write the `SKILL.md` following this structure:
 
 ```markdown
 ---
@@ -75,6 +80,12 @@ description: {Action verb phrase}. Use when asked to {trigger 1}, {trigger 2}, o
 ```
 
 If the skill uses subagents, also create reference files in `references/` — one per subagent.
+
+**For existing skills**, use the skill's current structure as the starting point. Do not force it into the canonical template above if the skill already has a well-established structure that serves its purpose. Instead:
+- **Preserve sections that work.** If the existing skill has sections with different names or a different organization that makes sense for its domain, keep them.
+- **Adapt, don't duplicate.** If a reference file already covers a topic in depth, do not create a SKILL.md section that restates the same content. Reference the file instead, or update the reference file if it needs improvement.
+- **Remove what doesn't fit.** If the existing skill has sections that are no longer relevant given the refinement goals, remove them rather than leaving dead weight.
+- **Apply judgment on structure.** The canonical sections (Objective, Inputs, Workflow/Rules, Output Format, Scope, Quality Checklist) are good defaults, but they're not sacred. An existing skill may split or combine them differently — evaluate whether the existing structure or the canonical structure better serves the skill's purpose, and choose accordingly.
 
 ### Phase 3: Validate
 
@@ -157,54 +168,48 @@ Define the structure of the output document. This is the contract between the sk
 
 **Output frontmatter (required in all skill outputs):**
 
-Every output file must start with YAML frontmatter containing tracking fields. Define two categories:
-
-1. **Common fields** (present in every skill's output):
+Every output file must start with a single YAML frontmatter block at the top of the file. This block contains both common tracking fields and skill-specific fields together. There is only ever one frontmatter block — never split fields across multiple YAML blocks.
 
 ```yaml
 ---
+# Common fields (present in every skill's output)
 skill: OUTPUT_NAME.md          # Which skill produced this
 date: YYYY-MM-DD               # When it was produced
 status: complete               # complete | has_open_questions | blocked
+
+# Skill-specific fields (vary by skill, designed for the domain)
+# Choose fields that enable monitoring, benchmarking, or pipeline decisions.
+# Good skill-specific fields answer: "What would an orchestrator or dashboard
+# want to know about this output at a glance?"
 ---
 ```
 
-2. **Skill-specific fields** (vary by skill, designed for the domain):
+**Examples of complete frontmatter blocks:**
 
-Choose fields that enable monitoring, benchmarking, or pipeline decisions. Good skill-specific fields answer: "What would an orchestrator or dashboard want to know about this output at a glance?"
-
-**Examples of skill-specific frontmatter fields:**
-
-For a code review skill:
+Code review skill:
 ```yaml
-verdict: pass                  # pass | concerns | fail
+---
+skill: CODE_REVIEW.md
+date: 2026-03-24
+status: complete
+verdict: pass
 critical_issues: 0
 high_issues: 2
 files_reviewed: 12
+---
 ```
 
-For a specification skill:
+Specification skill:
 ```yaml
+---
+skill: SPEC.md
+date: 2026-03-24
+status: complete
 unit: U01
 functions_specified: 8
 open_questions: 0
 estimated_loc: 350
-```
-
-For an implementation skill:
-```yaml
-unit: U01
-tests_total: 14
-tests_passing: 14
-deviations_from_plan: 1
-```
-
-For a verification skill:
-```yaml
-verdict: pass
-scenarios_pass: 8
-scenarios_fail: 0
-scenarios_blocked: 1
+---
 ```
 
 Design frontmatter fields that are:
@@ -283,6 +288,16 @@ Match the voice used across all skills in this project:
 - **Concrete examples.** When illustrating a pattern, use realistic names, paths, and code — not abstract placeholders.
 - **No marketing language.** Skills are technical instructions, not product descriptions.
 
+### No Redundancy Between SKILL.md and References
+
+A skill's `SKILL.md` and its `references/` directory form a coherent whole. Content should live in exactly one place:
+
+- If a reference file covers a topic in depth (e.g., a subagent's full instructions, a domain-specific guide), the SKILL.md should point to it, not restate it.
+- If the SKILL.md already covers a topic inline and no reference file exists for it, do not create a reference file just for the sake of having one.
+- When refining a skill, audit for redundancy: if the same guidance appears in both SKILL.md and a reference file, consolidate it in the most appropriate location and remove the duplicate.
+
+This applies especially when adding new sections to an existing skill — always check whether the content is already covered by an existing reference file before writing it into SKILL.md.
+
 ### No-Interaction Rule
 
 Skills never pause to ask the user questions during execution. This is a hard constraint for autonomous agent compatibility.
@@ -345,15 +360,15 @@ Design principles for subagent prompts:
 ### In scope
 
 - Designing and writing a complete skill definition (`SKILL.md`)
-- Creating subagent reference files if the skill uses subagents
+- Refining and improving existing skills — updating structure, content, references, and conventions
+- Creating or updating subagent reference files if the skill uses subagents
 - Defining output frontmatter with tracking fields
 - Applying project conventions, writing style, and structural patterns
 - Validating the skill against the quality checklist
 
 ### Out of scope
 
-- Running or testing the created skill — that is a separate step after creation
-- Modifying existing skills — use this skill for new skills only; modify existing skills by reading and editing them directly
+- Running or testing the created/refined skill — that is a separate step after creation
 - Creating orchestration agents — see `agents/ORCHESTRATION_GUIDELINES.md` for that
 - Writing the application code or content that the skill will eventually produce
 
@@ -368,7 +383,7 @@ Before the skill is ready, verify:
 - [ ] Objective is one paragraph covering: what it produces, what "done" looks like, what gap it fills
 - [ ] Inputs are numbered with required/optional/auto-discovered status for each
 - [ ] Core section is Workflow, Rules, or both — chosen appropriately for the skill's nature
-- [ ] Output format defines YAML frontmatter with common fields (`skill`, `date`, `status`) and skill-specific trackable fields
+- [ ] Output format defines a single YAML frontmatter block with common fields (`skill`, `date`, `status`) and skill-specific trackable fields — never multiple YAML blocks
 - [ ] Output template uses `{placeholders}`, iteration guidance, conditional sections, and empty-state text
 - [ ] Open Questions pattern is defined in the output format
 - [ ] In-scope and out-of-scope sections are present, with out-of-scope naming adjacent skills/phases
@@ -378,3 +393,4 @@ Before the skill is ready, verify:
 - [ ] SKILL.md is under 500 lines (or uses reference files for overflow)
 - [ ] If subagents are used: each has a reference file with role, inputs, process, output format, and guiding principles
 - [ ] The skill is self-contained — an agent reading only SKILL.md (and referenced files) can produce the output
+- [ ] If refining: no content is duplicated between SKILL.md and reference files; existing structure is preserved where it serves the skill's purpose
