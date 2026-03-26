@@ -309,19 +309,17 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
    - Look at "Test Results". If tests are failing → the implementation agent should have handled this, but if the report shows persistent failures, go back to PLAN with the failure context.
    - Look at "Deviations from Plan". Note significant deviations — they may affect downstream units.
 4. Check for Open Questions → resolve by editing.
+5. **Commit the implementation.** Stage and commit all code changes produced by this phase. Use a descriptive commit message that identifies the unit (e.g., `U07: implement repository lifecycle`). Record the commit hash — you will pass it to code review as the review scope.
 
 ### 3c. CODE_REVIEW
 
-1. Invoke:
+1. Invoke with the commit scope from step 3b:
    ```bash
-   unset CLAUDECODE && claude -p "/CODE_REVIEW.md Write the review to sdd/{unit_id}/CODE_REVIEW.md." --permission-mode bypassPermissions
+   unset CLAUDECODE && claude -p "/CODE_REVIEW.md Review the changes in commit:{commit_hash}. Write the review to sdd/{unit_id}/CODE_REVIEW.md." --permission-mode bypassPermissions
    ```
-   The CODE_REVIEW skill auto-discovers changes from git state, so no explicit input file is needed.
+   Pass the commit hash recorded in step 3b so the review is scoped to exactly the implementation changes. For fix rounds, pass the fix commit hash so the review only examines the fix.
 2. Read `sdd/{unit_id}/CODE_REVIEW.md`.
-3. **Check the verdict:**
-   - **PASS** → proceed to VERIFICATION.
-   - **CONCERNS** (High issues) → **go back to IMPLEMENTATION** with the issues as context.
-   - **FAIL** (Critical issues) → **go back to IMPLEMENTATION** with the critical issues as context.
+3. **Analyze the verdict and findings** — see Feedback Loop Rules below for how to decide the next action.
 4. Check for Open Questions → resolve by editing.
 
 ### 3d. VERIFICATION
@@ -341,60 +339,42 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 
 ## Feedback Loop Rules
 
-When a later phase reveals problems, you go back to an earlier phase. These are the rules:
+When a later phase reveals problems, you go back to an earlier phase. Use judgment to decide the right action.
 
-### When to go back to PLAN
+### After reading CODE_REVIEW.md, decide the next action
 
-- IMPLEMENTATION reports unresolvable issues caused by plan gaps or wrong assumptions
-- VERIFICATION shows the feature fundamentally doesn't work as designed
-- The approach needs rethinking, not just bug fixing
+Read the findings carefully. Consider what they tell you about where the problem lies:
 
-### When to go back to IMPLEMENTATION
+- **Issues are implementation bugs** — wrong logic, missing error handling, race conditions, security holes in the code that was written → go back to IMPLEMENTATION to fix them.
+- **Issues reveal design problems** — the review says the approach is fundamentally flawed, the architecture does not support what is needed, or types and interfaces are wrong → go back to PLAN. Include the review findings so the revised plan addresses the structural problem.
+- **Issues are in fix code from a previous round** — each fix introduced new problems that got reviewed. Read the chain of reviews to understand whether the problems are converging (getting smaller and fewer) or diverging (each fix opens new problems). If converging, one more fix round should resolve it. If diverging, the area may be too complex for incremental patching — go back to PLAN.
+- **The unit should be discarded** — if multiple plan revisions have not resolved fundamental issues, the unit's scope or approach as defined in the spec may be wrong. Document what was learned and skip the unit.
 
-- CODE_REVIEW found Critical or High issues (bugs, security, logic errors)
-- VERIFICATION found bugs in the implementation (the approach is correct but the code has errors)
-- Test failures that were not caught during implementation
+
+### After reading VERIFICATION.md, decide the next action
+
+- **PASS** → unit is done.
+- **PARTIAL or FAIL** → analyze the failures. Determine whether the issue is in the implementation (wrong code — go back to IMPLEMENTATION) or the plan/spec (wrong approach — go back to PLAN).
 
 ### How to go back
 
-Start a **new** Claude Code instance with the feedback incorporated into the prompt:
+Start a **new** Claude Code instance. Point it to the relevant artifact files rather than pasting content.
+
+Going back to PLAN:
 
 ```bash
-unset CLAUDECODE && claude -p "/PLAN.md The previous plan (sdd/{unit_id}/PLAN.md) was implemented but the implementation encountered the following problems: <problems>{paste the relevant section from IMPLEMENTATION.md or CODE_REVIEW.md}</problems> Read the specification from sdd/{unit_id}/SPEC.md. Address the problems above and write an updated plan to sdd/{unit_id}/PLAN.md." --permission-mode bypassPermissions
+unset CLAUDECODE && claude -p "/PLAN.md Read the specification from sdd/{unit_id}/SPEC.md and the code review from sdd/{unit_id}/CODE_REVIEW.md. The previous plan was implemented but the review identified design-level problems. Revise the plan to address them. Write the updated plan to sdd/{unit_id}/PLAN.md." --permission-mode bypassPermissions
 ```
 
-Similarly for going back to IMPLEMENTATION:
+Going back to IMPLEMENTATION to fix code review issues:
 
 ```bash
-unset CLAUDECODE && claude -p "/IMPLEMENTATION.md The previous implementation was reviewed and the following issues were found: <issues>{paste Critical and High issues from CODE_REVIEW.md}</issues> Read the plan from sdd/{unit_id}/PLAN.md. Fix the issues above and write the implementation report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
+unset CLAUDECODE && claude -p "/IMPLEMENTATION.md Read the plan from sdd/{unit_id}/PLAN.md and the code review from sdd/{unit_id}/CODE_REVIEW.md. Fix the issues identified in the review. Write the updated report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
 ```
 
-### Retry limits
+When multiple review rounds have produced multiple CODE_REVIEW files, tell the agent which one is current so it does not get confused by already-addressed findings from earlier rounds.
 
-- **Maximum 3 attempts** per phase per unit. If a phase fails 3 times:
-  - Document the persistent failure in the unit's directory (e.g., `sdd/{unit_id}/BLOCKED.md`)
-  - Skip the unit and continue with other units
-  - Report the blocked unit at the end
-
-### Feedback loop between PLAN and IMPLEMENTATION
-
-```
-PLAN (attempt 1)
-  → IMPLEMENTATION (attempt 1) → problems →
-PLAN (attempt 2, with problem context)
-  → IMPLEMENTATION (attempt 2) → success →
-CODE_REVIEW → ...
-```
-
-### Feedback loop between CODE_REVIEW and IMPLEMENTATION
-
-```
-IMPLEMENTATION (attempt 1)
-  → CODE_REVIEW → Critical issues →
-IMPLEMENTATION (attempt 2, with issue context)
-  → CODE_REVIEW → PASS →
-VERIFICATION → ...
-```
+After each fix round, commit the changes and pass the new commit hash to the next code review invocation. This ensures each review round only examines the new fixes, not the entire unit again.
 
 ---
 
@@ -474,13 +454,9 @@ The agent ran but didn't produce the expected file.
 2. If found elsewhere, move it to the expected location.
 3. If not found, retry with more explicit output path instructions.
 
-### Infinite loop detection
+### Recognizing non-convergence
 
-Track the number of times you've gone back to a previous phase for each unit. If you detect:
-- PLAN → IMPLEMENTATION → PLAN → IMPLEMENTATION → PLAN (3 cycles)
-- IMPLEMENTATION → CODE_REVIEW → IMPLEMENTATION → CODE_REVIEW → IMPLEMENTATION (3 cycles)
-
-Stop, document the issue in `sdd/{unit_id}/BLOCKED.md`, and move on.
+Track the trajectory of feedback across rounds. If the problems are not shrinking — each round surfaces new issues of similar or greater scope rather than diminishing fixes — the approach is not converging. This is a signal to escalate (go back to PLAN) or discard the unit, not to keep retrying the same level. Document what was learned in `sdd/{unit_id}/BLOCKED.md` if you decide to skip the unit.
 
 ---
 
@@ -503,40 +479,31 @@ This is the full algorithm you follow:
        - Read SPEC.md, resolve open questions, verify completeness
 
 7. For each unit in dependency order:
-   attempt_plan = 0
-   attempt_impl = 0
 
    7a. PLAN:
-       attempt_plan += 1
        Run PLAN skill → sdd/{unit}/PLAN.md
        Inspect, resolve open questions
 
    7b. IMPLEMENTATION:
-       attempt_impl += 1
        Run IMPLEMENTATION skill → sdd/{unit}/IMPLEMENTATION.md
        Inspect output
-       If problems and attempt_plan < 3:
-           Go to 7a with problem context
-       If problems and attempt_plan >= 3:
-           Mark unit BLOCKED, continue to next unit
+       If problems indicate plan gaps → go to 7a with context
+       Commit all code changes, record commit hash
 
    7c. CODE_REVIEW:
        Run CODE_REVIEW skill → sdd/{unit}/CODE_REVIEW.md
-       Inspect verdict
-       If FAIL or CONCERNS and attempt_impl < 3:
-           Go to 7b with issue context
-       If FAIL or CONCERNS and attempt_impl >= 3:
-           Mark unit BLOCKED, continue to next unit
-       If PASS: continue
+       Read findings, analyze using judgment:
+       - PASS → continue to 7d
+       - Issues are implementation bugs → fix via IMPLEMENTATION,
+         commit fix, re-review scoped to fix commit
+       - Issues reveal design problems → go back to 7a
+       - Problems not converging across rounds → escalate or skip
 
    7d. VERIFICATION:
        Run VERIFICATION skill → sdd/{unit}/VERIFICATION.md
        Inspect verdict
-       If FAIL and attempt_plan < 3:
-           Go to 7a with failure context
-       If PARTIAL and attempt_impl < 3:
-           Go to 7b with failure context
-       If PASS: unit complete
+       If failures → analyze root cause, go back to 7a or 7b
+       If PASS → unit complete
 
 8. Report final status for all units
 ```

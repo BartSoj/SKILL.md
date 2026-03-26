@@ -7,17 +7,16 @@ description: Review code changes using parallel subagents for security, bugs, qu
 
 ## Objective
 
-Produce a CODE_REVIEW.md that captures every meaningful issue in the current code changes by launching specialized review subagents in parallel, each focused on a distinct quality dimension, then aggregating their findings into a single actionable document. The review covers all uncommitted changes plus all branch commits not yet in main.
+Produce a CODE_REVIEW.md that captures every meaningful issue in the current code changes by launching specialized review subagents in parallel, each focused on a distinct quality dimension, then aggregating their findings into a single actionable document. The review covers the explicitly provided scope, or all uncommitted changes plus branch commits not yet in main when no scope is given.
 
 ---
 
 ## Inputs
 
-1. **Code changes** — discovered automatically from git state (see Phase 1).
-2. **Project guidelines** — CLAUDE.md, README.md, or equivalent files in the repository root.
-3. **Existing codebase** — the full repository, available to subagents for context beyond the diff.
-
-No user input is required. If the user specifies a narrower scope (specific files, directories, or commit range), honor that scope instead of the default.
+1. **Code changes** — discovered automatically from git state (see Phase 1), or scoped explicitly by the caller.
+2. **Review scope** (optional) — narrows what changes to review. Can be a specific commit hash, a commit range, specific files or directories, or "staged" for staged changes only. When provided, review only the specified changes. When omitted, auto-discover all uncommitted and branch changes (default behavior).
+3. **Project guidelines** — CLAUDE.md, README.md, or equivalent files in the repository root.
+4. **Existing codebase** — the full repository, available to subagents for context beyond the diff.
 
 ---
 
@@ -27,16 +26,22 @@ The review proceeds in three phases. All three are mandatory and sequential — 
 
 ### Phase 1: Scope Discovery
 
-Determine what code is under review by running the following git commands:
+Determine what code is under review.
+
+**If an explicit scope was provided**, use it to determine the diff. Derive the appropriate git commands from the scope — a commit hash means diffing that commit against its parent, a range means diffing the endpoints, "staged" means `git diff --cached`, specific files means scoping the diff to those paths. Use judgment to translate the caller's scope into the right git operations.
+
+**If no scope was provided** (default), discover changes from git state:
 
 1. **Unstaged changes:** `git diff`
 2. **Staged changes:** `git diff --cached`
 3. **Branch changes:** Identify the main branch (`main` or `master`), then run `git log <main-branch>..HEAD --oneline` and `git diff <main-branch>...HEAD`
 
-Combine all three into a single unified picture:
-- **Changed files list** — every file path that appears in any of the three diffs, deduplicated.
-- **Full diff content** — the combined diff across all three sources. For files that appear in both branch diff and working-tree diff, use the working-tree version (it represents the latest state).
-- **Commit summary** — one-line description of each branch commit for context.
+Combine into a single unified picture.
+
+**In both cases**, produce:
+- **Changed files list** — every file path that appears in the diff, deduplicated.
+- **Full diff content** — the combined diff. For files that appear in both branch diff and working-tree diff, use the working-tree version (latest state).
+- **Commit summary** — one-line description of each relevant commit for context.
 
 Also read project guideline files from the repository root: CLAUDE.md, README.md, CONTRIBUTING.md, .editorconfig, linter configs, or any other convention-defining file. These will be passed to every subagent.
 
@@ -79,8 +84,11 @@ Collect findings from all six subagents and assemble CODE_REVIEW.md:
    - **Medium** — code quality issues, minor bugs in non-critical paths, missing tests for important behavior. Worth fixing.
    - **Low** — style inconsistencies, minor naming issues, optional improvements. Fix if convenient.
 
-3. **Discard noise.** Drop findings that are:
+3. **Discard noise.** Every finding must be directly caused by, introduced in, or meaningfully worsened by the code changes under review. Drop findings that are:
    - Pre-existing issues not introduced or worsened by the current changes
+   - Issues in unchanged code that happens to be adjacent to or called by the changed code
+   - Forward-looking concerns about behavior that depends on code not yet written — review what exists, not what might exist later
+   - Aspirational improvements that go beyond what the changes set out to accomplish — the review evaluates whether the changes are correct, not whether they could be more ambitious
    - Style-only nitpicks in files with large functional changes (focus on substance)
    - Issues that linters or formatters would catch automatically
    - Theoretical issues that require implausible conditions to trigger
@@ -95,6 +103,16 @@ Collect findings from all six subagents and assemble CODE_REVIEW.md:
 ## Output Format
 
 ```markdown
+---
+skill: CODE_REVIEW.md
+date: {YYYY-MM-DD}
+status: {complete | has_open_questions}
+verdict: {pass | concerns | fail}
+critical_issues: {N}
+high_issues: {N}
+files_reviewed: {N}
+---
+
 # CODE_REVIEW: {brief description of what was reviewed}
 
 ## Review Scope
@@ -235,9 +253,8 @@ Genuinely ambiguous items where multiple valid interpretations exist and the rev
 
 ### In scope
 
-- All uncommitted changes (staged and unstaged) in the current working tree
-- All commits on the current branch that are not in the main branch
-- Security vulnerabilities, bugs, code quality, API contracts, test coverage, and historical context analysis
+- Changes identified by the explicit scope, or all uncommitted changes and branch commits when no scope is given
+- Security vulnerabilities, bugs, code quality, API contracts, test coverage, and historical context analysis — limited to what the reviewed changes introduce or worsen
 - Producing a single CODE_REVIEW.md aggregating all findings
 
 ### Out of scope
@@ -254,11 +271,13 @@ Genuinely ambiguous items where multiple valid interpretations exist and the rev
 
 Before considering CODE_REVIEW.md complete, verify:
 
-- [ ] Phase 1 ran all three git commands and the scope section accurately reflects the changes
+- [ ] Output file has valid YAML frontmatter with all required fields
+- [ ] Phase 1 used the provided scope (or ran default discovery) and the scope section accurately reflects the changes
 - [ ] All six subagents were launched in parallel and all six completed
 - [ ] Duplicate findings across subagents are merged, not listed twice
 - [ ] Every finding has a specific file path and line range, not a vague reference
 - [ ] Every Critical and High finding has a concrete fix, not a vague suggestion like "add validation" or "handle the error"
+- [ ] Every finding points to a specific line that was changed — no findings about unchanged code, future code, or aspirational improvements
 - [ ] No findings refer to pre-existing issues untouched by the current changes
 - [ ] No findings duplicate what a linter or formatter would catch automatically
 - [ ] The Positive Observations section contains at least one entry
