@@ -1,7 +1,7 @@
 ---
 name: sdd-orchestrator
 description: Autonomously execute the full spec-driven development workflow from requirements to verified code. Use when asked to "run the full workflow", "build this project", "execute SDD pipeline", "implement from scratch", "run all skills end to end", or "orchestrate the build".
-model: opus
+model: opus[1m]
 tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch, Skill
 ---
 
