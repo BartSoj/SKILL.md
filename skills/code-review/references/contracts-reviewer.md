@@ -80,13 +80,46 @@ For each contract surface found, evaluate against these principles:
 - **State transitions.** Are valid state transitions enforced? Can an order go from "cancelled" to "shipped"? Is there a state machine or are transitions ad-hoc?
 - **Cross-field constraints.** When two fields must be consistent (e.g., `discount_percent` and `discount_amount` must agree, `start_date` must precede `end_date`), is this enforced at the type level, in the constructor, or nowhere?
 
-### Step 3: Cross-Reference with Existing Contracts
+### Step 3: Contract Registry Validation
+
+Check whether a CONTRACT_REGISTRY.md (or equivalent contract document — OpenAPI spec, shared types package, wire-format documentation) exists in the project. If it does, perform the following checks for all changed files that implement HTTP communication. If no contract registry exists, skip this step and note its absence in your findings.
+
+**For HTTP client code** (code that sends requests or deserializes HTTP responses — e.g., Rust structs with serde for API responses, TypeScript fetch calls, Go HTTP client code):
+
+- Do the struct/type field names match the wire format in the contract registry? Account for serialization annotations (e.g., `#[serde(rename_all = "camelCase")]` in Rust, `@JsonProperty` in Java, `json:"fieldName"` tags in Go).
+- Are serialization/deserialization attributes correct for the wire convention? (e.g., if the registry specifies camelCase JSON and the client is in a snake_case language, is the rename annotation present?)
+- Are all required response fields present in the client type?
+- Are optional fields correctly represented (e.g., `Option<T>` in Rust, `T | undefined` in TypeScript)?
+- Does the client handle all documented response status codes, not just the success case?
+
+**For HTTP server code** (route handlers, controllers, response serializers):
+
+- Does the response shape match the contract registry entry for this endpoint?
+- Are all fields from the registry present in the response?
+- Are field names consistent with the wire convention (e.g., camelCase if the registry specifies camelCase)?
+- Do error responses follow the registry's error shape?
+
+**For test mocks** (wiremock response bodies, MSW handlers, nock interceptors, test doubles that simulate HTTP responses):
+
+- Do mock response bodies use the wire-format field names and casing from the contract registry?
+- Mock data that uses the implementing language's native convention instead of the wire format is a finding — tests pass but verify against unrealistic data.
+
+**Severity for contract registry mismatches:**
+
+| Severity | Condition |
+|----------|-----------|
+| Critical | Struct/response shape structurally incompatible with registry — wrong field names, wrong types, missing required fields |
+| High | Casing mismatch — snake_case struct without rename annotation against camelCase registry, or vice versa |
+| Medium | Mock data uses wrong field names or casing — tests pass but do not represent the real wire format |
+
+### Step 4: Cross-Reference with Existing Contracts
 
 Compare new or modified contracts against:
 - Existing endpoints/types in the same module — are patterns consistent?
 - Similar entities in the codebase — does the new design follow established patterns?
 - API documentation or OpenAPI specs if they exist — is the code consistent with the spec?
 - Database schema — do the API types match the underlying data model?
+- CONTRACT_REGISTRY.md or equivalent — do implementations match the registered wire format? (detailed checks in Step 3 above)
 
 ## Output Format
 
@@ -128,6 +161,24 @@ Return findings in this exact structure:
 
 (Repeat for each design issue.)
 
+### Contract Registry Mismatches
+
+(If no contract registry exists in the project: "No contract registry found — skipped registry validation. Consider creating a CONTRACT_REGISTRY.md to prevent cross-boundary contract drift.")
+
+#### {N}. {Mismatch title}
+
+**File:** `path/to/file.ext:{line range}`
+**Registry entry:** `{METHOD /path}` in CONTRACT_REGISTRY.md § {section}
+**Side:** {client / server / test mock}
+**Severity:** {Critical / High / Medium}
+
+**Registry says:** {The field name, type, or shape as documented in the registry.}
+**Code says:** {The field name, type, or shape as implemented in the code.}
+
+**Fix:** {Specific change — e.g., "Add `#[serde(rename_all = "camelCase")]` to the struct" or "Rename field `parent_sha` to `parentSha` in the mock response body."}
+
+(Repeat for each mismatch. If no mismatches: "All reviewed code conforms to the contract registry.")
+
 ### Consistency Issues
 
 | # | File | Contract | Issue | Existing Pattern | Reference |
@@ -141,6 +192,7 @@ Return findings in this exact structure:
 ### Summary
 
 - Breaking changes: {N}
+- Contract registry mismatches: Critical {N}, High {N}, Medium {N}
 - Design issues: Critical {N}, High {N}, Medium {N}, Low {N}
 - Consistency issues: {N}
 ```

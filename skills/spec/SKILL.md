@@ -52,6 +52,15 @@ You will receive:
 - All type names, function signatures, and route paths must be consistent with dependency units' SPECs. If a dependency exports `TreeEntry { path: String, sha: String, kind: EntryKind }`, use those exact field names.
 - If the architecture documents specify a convention (e.g., vertical modules, error mapping pattern), the spec must follow it without restating the convention — just apply it.
 
+### Contract registry rules
+
+When the unit implements code on either side of an HTTP boundary (client that sends requests/deserializes responses, or server that defines route handlers/serializes responses):
+
+- The spec must reference the specific CONTRACT_REGISTRY.md entries (or equivalent contract document) that define the wire format for the endpoints this unit touches. If no contract registry exists, derive wire formats from architecture documents and state them explicitly in the spec — do not leave them implicit.
+- Request/response types in the spec must use the exact field names and types from the contract registry. Do not independently derive wire formats from English prose descriptions.
+- The spec must explicitly state the serialization convention the unit must follow (e.g., "Response struct uses `#[serde(rename_all = "camelCase")]` per contract registry wire convention" or "Route handler returns camelCase JSON per contract registry").
+- When the unit is one side of a client-server pair, the spec must acknowledge the other side exists and reference the contract registry entry that both sides must conform to. This prevents each side from making independent naming choices.
+
 ### No-code rule
 
 - The spec must not contain code or pseudocode unless a specific algorithm is non-obvious and cannot be described unambiguously in prose (e.g., a specific hash partitioning scheme, a binary format layout). In that case, minimal pseudocode is permitted with a note explaining why prose was insufficient.
@@ -188,6 +197,16 @@ How this unit is integrated into its parent:
 - Route mounting (e.g., `router.merge(X_routes())` in which file)
 - Any other wiring required
 
+### HTTP Contract References
+
+(Include this subsection when the unit implements code on either side of an HTTP boundary. If the unit has no HTTP boundary involvement: "Not applicable — this unit does not interact with an HTTP boundary.")
+
+For each CONTRACT_REGISTRY entry this unit implements:
+
+| Endpoint | Role | Registry entry | Wire convention | Transformation |
+|----------|------|----------------|-----------------|----------------|
+| `METHOD /path` | client / server | CONTRACT_REGISTRY.md § {section} | {e.g., camelCase JSON} | {e.g., "Server transforms snake_case from internal service to camelCase for client" or "None"} |
+
 ---
 
 ## 7. Error Catalog
@@ -210,6 +229,8 @@ For each test:
 - **Action:** What function/route to call, with what arguments.
 - **Assertion:** Exact expected outcome — return value, status code, side effects to verify, state changes.
 - **Teardown:** Cleanup required (if any beyond default temp directory cleanup).
+
+**Mock fidelity requirement:** When tests use HTTP mocks (wiremock, MSW, nock, test doubles that simulate HTTP responses), mock response bodies MUST use wire-format field names and casing as defined in CONTRACT_REGISTRY.md (or the contract source of truth for the project), not the implementing language's native convention. This ensures tests verify against realistic wire data, not fantasy responses that happen to match the client's struct layout.
 
 ---
 
@@ -285,3 +306,6 @@ Before considering a SPEC.md complete, verify:
 - [ ] No code or pseudocode (unless justified with a note)
 - [ ] Out-of-scope section names at least 3 items that an eager implementer might accidentally include
 - [ ] Every constant/magic value used anywhere in the spec has an explicit value in section 9's Constants table
+- [ ] If the unit touches an HTTP boundary: section 6 includes an HTTP Contract References subsection citing specific contract registry entries
+- [ ] If the unit touches an HTTP boundary: request/response types use exact field names from the contract registry, not independently derived names
+- [ ] If the unit uses HTTP mocks in tests: section 8 states mock fidelity requirement with wire-format field names

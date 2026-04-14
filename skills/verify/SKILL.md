@@ -115,6 +115,23 @@ For CLI applications, use Bash:
 - If the application crashes during testing, attempt one restart. If restart succeeds, continue from the next scenario. If restart fails, mark all remaining scenarios as BLOCKED with reason "application crashed and could not be restarted."
 - If a scenario is blocked because it depends on a failed scenario, mark it BLOCKED and note the dependency.
 
+### Phase 3.5: End-to-End and Mock Fidelity Checks
+
+After running the scenario-based tests from Phase 3, perform these additional checks when the infrastructure supports them. These are strong guidance, not hard requirements — early-stage units or components without running dependencies may not be able to perform them.
+
+**End-to-end interaction.** After verifying scenarios through the unit's own interface, attempt to test the feature through the actual running system when feasible:
+
+- If enough infrastructure exists to start related services (server, database, dependent APIs), start them and test the feature as it would work in the composed system — not just in isolation.
+- If the feature has an observable effect through cross-component interaction (e.g., a push endpoint can be called via curl and the result read back through a list endpoint), test that path.
+- Prefer real dependencies over mocks when the infrastructure supports it: if the database is available, test against it rather than an in-memory stub; if the server is running, test the CLI against the real server rather than wiremock.
+- If e2e testing is not feasible (system cannot start yet, dependencies are not built, no way to observe the feature externally), document why in the VERIFICATION.md and proceed with unit-level verification only. This is acceptable for foundation and scaffold units.
+
+**Mock fidelity verification.** If the unit's tests use HTTP mocks (wiremock, MSW, nock, test doubles), and a CONTRACT_REGISTRY.md (or equivalent contract document) exists in the project:
+
+- Check that mock response bodies use wire-format field names and casing from the contract registry, not the implementing language's native convention.
+- Flag any mock that uses field names or structure inconsistent with the registry — these mocks cause tests to verify against unrealistic data, masking integration bugs.
+- Record mock fidelity findings in the VERIFICATION.md under a dedicated section.
+
 ### Phase 4: Produce VERIFICATION.md
 
 After all scenarios are tested, shut down the application (if this skill started it), and write VERIFICATION.md.
@@ -192,6 +209,35 @@ After all scenarios are tested, shut down the application (if this skill started
 
 ---
 
+## End-to-End Testing
+
+(Include this section when e2e testing was attempted or when documenting why it was not feasible.)
+
+**E2E attempted:** {yes / no}
+**Reason (if no):** {e.g., "Server and database are not yet available — this is a Tier 0 foundation unit."}
+
+(If e2e was attempted, list cross-component interactions tested and their results using the same PASS/FAIL/BLOCKED format as scenario results above.)
+
+---
+
+## Mock Fidelity
+
+(Include this section when the unit's tests use HTTP mocks and a contract registry exists.)
+
+**Contract registry found:** {yes — path / no}
+**Mocks checked:** {N}
+**Mismatches found:** {N}
+
+| Mock location | Field/Issue | Registry says | Mock says |
+|---------------|------------|---------------|-----------|
+| `path/to/test:line` | {field name or casing issue} | {wire-format value} | {mock value} |
+
+(If no contract registry exists: "No contract registry found — mock fidelity check skipped.")
+(If no mocks exist: "No HTTP mocks found in this unit's tests.")
+(If all mocks match: "All mock response bodies conform to the contract registry.")
+
+---
+
 ## Positive Observations
 
 Noteworthy quality observations from testing — aspects of the application that work well, feel polished, or exceed expectations.
@@ -260,5 +306,7 @@ Before considering VERIFICATION.md complete, verify:
 - [ ] The Positive Observations section has at least one entry when any scenario passed
 - [ ] The Steps Performed for each scenario list the actual commands or interactions used, not abstract descriptions
 - [ ] The application was shut down after testing (if this skill started it)
+- [ ] End-to-End Testing section is present — either with e2e results or a documented reason why e2e was not feasible
+- [ ] Mock Fidelity section is present — either with check results, a note that no registry/mocks exist, or confirmation of conformance
 - [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.")
 - [ ] The document is self-contained — readable and actionable without opening any other file
