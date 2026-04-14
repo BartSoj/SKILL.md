@@ -119,7 +119,6 @@ unset CLAUDECODE && claude -p "/PLAN.md Read the specification from sdd/U01/SPEC
 - `--permission-mode bypassPermissions` — suppresses interactive permission dialogs that hang the subprocess.
 
 **Optional flags:**
-- `--model <model>` — override the model per invocation (`opus`, `sonnet`, `haiku`). Use `opus` for complex skills (SPEC, PLAN, CODE_REVIEW, TRIAGE), `sonnet` for simpler tasks.
 - `--add-dir <path>` — give the agent read/write access to an additional directory (repeatable).
 
 **Rules:**
@@ -127,7 +126,7 @@ unset CLAUDECODE && claude -p "/PLAN.md Read the specification from sdd/U01/SPEC
 - **Keep the skill name and instructions on the same line.** The prompt must start with `/SKILL_NAME.md ` followed by instructions on the same line, with no newline after the skill name. A newline immediately after the skill name prevents the skill from being triggered. Correct: `"/PLAN.md Read the spec from ..."`. Wrong: `"/PLAN.md\nRead the spec from ..."`.
 - **Always specify input and output file paths** in the prompt. The child agent reads from the filesystem and writes to a specific file.
 - **Do not parse stdout.** Stdout may contain progress messages and formatting. Check whether the expected output file exists after the process completes.
-- **Set reasonable timeouts.** Use the Bash tool's timeout parameter: 600000ms (10 min) for simple skills, up to 3600000ms (60 min) for IMPLEMENTATION.
+- **Set long timeouts.** Use the Bash tool's timeout parameter: 3600000ms (60 min) for any claude CLI agent.
 - **Prefer file-based output.** Tell the agent to write results to a specific file path. Stdout is a debug channel, not the data channel.
 
 ### Continue Previous Session
@@ -180,14 +179,13 @@ def run_spec(unit_id: str, unit_description: str, spec_deps_context: str) -> dic
     cmd = [
         "claude", "-p", prompt,
         "--permission-mode", "bypassPermissions",
-        "--model", "opus",
     ]
 
     t0 = time.time()
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True,
-            timeout=1200, env=claude_env(),
+            timeout=3600, env=claude_env(),
         )
         elapsed = time.time() - t0
 
@@ -203,7 +201,7 @@ def run_spec(unit_id: str, unit_description: str, spec_deps_context: str) -> dic
         return {"id": unit_id, "status": "done", "elapsed": elapsed}
 
     except subprocess.TimeoutExpired:
-        return {"id": unit_id, "status": "timeout", "elapsed": 1200}
+        return {"id": unit_id, "status": "timeout", "elapsed": 3600}
 
 
 # --- Preflight ---
@@ -284,7 +282,7 @@ This phase runs after SPLIT_WORK and before SPEC generation. It produces the doc
    ```bash
    unset CLAUDECODE && claude -p "/CONTRACT_REGISTRY.md Read the architecture documents and codebase to identify HTTP boundaries and produce wire-format contracts. Write the output to sdd/CONTRACT_REGISTRY.md." --permission-mode bypassPermissions
    ```
-   Use a generous timeout — the skill needs to read architecture documents, explore the codebase for existing type definitions, and produce per-endpoint contracts.
+   Use a 3600000ms timeout.
 
 2. Read `sdd/CONTRACT_REGISTRY.md`.
 
@@ -367,7 +365,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
    ```bash
    unset CLAUDECODE && claude -p "/IMPLEMENTATION.md Read the plan from sdd/{unit_id}/PLAN.md. Write the implementation report to sdd/{unit_id}/IMPLEMENTATION.md." --permission-mode bypassPermissions
    ```
-   Use a long timeout (up to 60 minutes) — implementation involves writing code and running tests.
+   Use a 3600000ms timeout.
 2. Read `sdd/{unit_id}/IMPLEMENTATION.md`.
 3. **Check for problems:**
    - Look at the "Issues Encountered" section. If there are unresolved issues that indicate plan problems (wrong assumptions, missing context, impossible steps) → **go back to PLAN** (see Feedback Loops below).
@@ -424,7 +422,7 @@ This phase runs once after ALL units have completed their per-unit pipelines. It
    ```bash
    unset CLAUDECODE && claude -p "/SYSTEM_VERIFICATION.md Bootstrap the full application stack and run end-to-end scenarios. Use cases and user flows are described in {path to USE_CASES.md or requirements document}. The contract registry is at sdd/CONTRACT_REGISTRY.md. Write the system verification report to sdd/SYSTEM_VERIFICATION.md." --permission-mode bypassPermissions
    ```
-   Use a long timeout (up to 60 minutes) — bootstrapping the full stack and running e2e scenarios takes time.
+   Use a 3600000ms timeout.
 
 2. Read `sdd/SYSTEM_VERIFICATION.md`.
 
