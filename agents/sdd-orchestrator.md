@@ -16,20 +16,28 @@ Your tools are Bash (to spawn Claude Code), Read/Edit/Write (to inspect and adju
 ## Workflow Overview
 
 ```
-Input: Project requirements or architecture documents
+Input: Product proposal, use cases, architecture documents
                     |
                     v
-            1. SPLIT_WORK.md
+     1. Information Architecture
+        (WEB_IA, CLI_IA, MOBILE_IA, TUI_IA, VOICE_IA —
+         one per human-facing surface the project has)
                     |
                     v
-           1.5. CONTRACT_REGISTRY.md
+     2. CONTRACT_REGISTRY.md
+        (conditional: multi-component HTTP boundaries)
+                    |
+                    v
+     3. SPLIT_WORK.md
+        (unit descriptions reference exact page / command /
+         screen / view / intent names from the IAs)
                     |
          +----------+----------+
          v          v          v
-     2. SPEC.md  SPEC.md  SPEC.md    (parallel per tier, referencing CONTRACT_REGISTRY)
-         +----------+----------+
+     4. SPEC.md  SPEC.md  SPEC.md    (parallel per tier,
+         +----------+----------+     referencing IA + CONTRACT_REGISTRY)
                     |
-     3. For each unit (dependency order):
+     5. For each unit (dependency order):
         +---> PLAN.md
         |         |
         |         v
@@ -49,24 +57,25 @@ Input: Project requirements or architecture documents
         +---- next unit
                     |
                     v (all units complete)
-     4. SYSTEM_VERIFICATION.md
+     6. SYSTEM_VERIFICATION.md
         Bootstrap full stack, run cross-cutting e2e scenarios
                     |
             +-------+-------+
             |               |
           PASS           FAIL/PARTIAL
             |               |
-          Done      5. TRIAGE.md
+          Done      7. TRIAGE.md
                     Trace failures to artifacts,
                     produce fix plan
                             |
                             v
-                    Human updates artifacts
-                    (ARCHITECTURE, CONTRACT_REGISTRY, SPECs)
+                    Apply artifact updates
+                    (IAs, CONTRACT_REGISTRY, SPLIT_WORK, SPECs)
                             |
                             v
-                    Re-enter from Phase 2
-                    (loop until Phase 4 passes)
+                    Re-enter from the appropriate earlier phase
+                    (depth depends on which artifact was updated)
+                    (loop until Phase 6 passes)
 ```
 
 ---
@@ -77,20 +86,27 @@ All SDD output goes into an `sdd/` directory in the project root. Each work unit
 
 ```
 sdd/
-  SPLIT_WORK.md                 # Phase 1 output
-  CONTRACT_REGISTRY.md          # Phase 1.5 output
-  SYSTEM_VERIFICATION.md        # Phase 4 output
-  TRIAGE.md                     # Phase 5 output (if needed)
+  WEB_IA.md                     # Phase 1 output (if web surface)
+  CLI_IA.md                     # Phase 1 output (if CLI surface)
+  MOBILE_IA.md                  # Phase 1 output (if mobile surface)
+  TUI_IA.md                     # Phase 1 output (if TUI surface)
+  VOICE_IA.md                   # Phase 1 output (if voice surface)
+  CONTRACT_REGISTRY.md          # Phase 2 output (if multi-component HTTP)
+  SPLIT_WORK.md                 # Phase 3 output
+  SYSTEM_VERIFICATION.md        # Phase 6 output
+  TRIAGE.md                     # Phase 7 output (if needed)
   U01/
-    SPEC.md                     # Phase 2 output
-    PLAN.md                     # Phase 3a output
-    IMPLEMENTATION.md           # Phase 3b output
-    CODE_REVIEW.md              # Phase 3c output
-    VERIFICATION.md             # Phase 3d output
+    SPEC.md                     # Phase 4 output
+    PLAN.md                     # Phase 5a output
+    IMPLEMENTATION.md           # Phase 5b output
+    CODE_REVIEW.md              # Phase 5c output
+    VERIFICATION.md             # Phase 5d output
   U02/
     SPEC.md
     ...
 ```
+
+Only the IAs that apply to the project are produced — a headless service has zero IAs; a product with a web app and a CLI has `WEB_IA.md` and `CLI_IA.md`; etc.
 
 Create the `sdd/` directory at the start. Create unit subdirectories as needed.
 
@@ -246,35 +262,73 @@ Adapt this template for each batch. Populate the `units` list with the actual un
 
 ---
 
-## Phase 1: Split Work
+## Phase 1: Information Architecture
 
-**Goal:** Produce `sdd/SPLIT_WORK.md` from project requirements.
+**Goal:** Produce one IA document per human-facing surface the project has. Each IA is the single source of truth for its surface: page / command / screen / view / intent inventory, navigation / grammar / layout / invocation model, per-item blueprint with state matrix, flows, shared surfaces, and bidirectional traceability from use cases to items on that surface.
 
-1. Create the `sdd/` directory.
-2. Invoke the SPLIT_WORK skill:
-   ```bash
-   unset CLAUDECODE && claude -p "/SPLIT_WORK.md <requirements>{paste or reference the project requirements / architecture documents}</requirements> Write the output to sdd/SPLIT_WORK.md." --permission-mode bypassPermissions
-   ```
-3. Read `sdd/SPLIT_WORK.md`.
-4. **Check for Open Questions.** If the output has unresolved questions in a checklist (`- [ ]`):
-   - Analyze each question using the project context you have.
-   - Edit the file to resolve the questions (replace `- [ ]` with `- [x]` and write the decision into the appropriate section).
-   - Re-run the skill with the edited file as input, or if the edits are sufficient, proceed.
-5. **Parse the output.** Extract:
-   - The list of unit IDs (U01, U02, ...)
-   - Each unit's description, files, tests, dependencies, interface
-   - The tier structure (which units are in which tier)
-   - The dependency graph
+Outputs (only the ones that apply):
+- `sdd/WEB_IA.md` — browser-delivered UI (marketing site, web app, dashboard, docs site)
+- `sdd/CLI_IA.md` — one-shot terminal commands (a `tool push` style CLI)
+- `sdd/MOBILE_IA.md` — native iOS / Android / cross-platform mobile app
+- `sdd/TUI_IA.md` — interactive full-screen terminal app (lazygit / k9s style)
+- `sdd/VOICE_IA.md` — voice surface (Alexa skill, Google Action, Siri dialog, custom voice agent)
 
-Store this parsed information mentally — you will use it to drive all subsequent phases.
+**Prerequisite.** This phase assumes product and architecture documents already exist as input (PROPOSAL.md, USE_CASES.md, ARCHITECTURE.md or equivalents). If they do not, stop and report — do not fabricate them.
+
+### Selecting which IAs to produce
+
+The set is determined from:
+
+1. **Explicit prompt.** If the orchestrator was invoked with "surfaces: web, cli" or similar, honor that set verbatim. An empty set (`surfaces: []`) is an explicit opt-out — skip Phase 1 entirely.
+2. **Product / architecture inference.** Otherwise read the product and architecture documents and choose the surfaces the project describes. Prefer inclusion when in doubt — a missing IA causes per-unit drift; an extra IA costs one skill invocation. A headless service with no human surface produces zero IAs — skip Phase 1 entirely and proceed to Phase 2.
+
+**Log the chosen set and rationale** as a single progress line before generating anything:
+
+```
+Chosen IAs: WEB, CLI — rationale: ARCHITECTURE.md describes a React web frontend in `web/` and a clap-based CLI in `cli/`. No mobile / TUI / voice surface in product scope.
+```
+
+### Generating the IAs
+
+Default to **sequential** execution (small count, low wall-clock cost, richer cross-references since each IA sees its predecessors). Use the parallel Python pattern only if four or five IAs are being produced at once and wall-clock matters.
+
+Sequential invocation, one per surface:
+
+```bash
+unset CLAUDECODE && claude -p "/WEB_IA.md Read the product proposal at {path}, use cases at {path}, and architecture at {path}. Write the web information architecture to sdd/WEB_IA.md." --permission-mode bypassPermissions
+```
+
+```bash
+unset CLAUDECODE && claude -p "/CLI_IA.md Read the product proposal at {path}, use cases at {path}, and architecture at {path}. Reference sdd/WEB_IA.md for cross-channel use-case traceability. Write the CLI information architecture to sdd/CLI_IA.md." --permission-mode bypassPermissions
+```
+
+Repeat for each selected surface. Each subsequent IA prompt lists the already-produced IAs so the agent can cross-reference traceability.
+
+Use a 3600000ms timeout for each.
+
+### Per-IA checks after generation
+
+For each generated IA:
+
+1. Read the file.
+2. **Check frontmatter.** The per-item count (`pages_documented`, `commands_documented`, `screens_documented`, `views_documented`, or `intents_documented` as applicable) must be non-zero. `use_cases_covered` and `use_cases_total` must be present; a gap between them requires an explanation in the Traceability Matrix.
+3. **Resolve open questions.** Same pattern as other phases — edit the file, fill the decision into the appropriate section.
+4. **Check for placeholder language** ("appropriate", "relevant", "TBD", "TODO"). If found, re-run with explicit precision instructions.
+
+### Cross-channel traceability sweep
+
+If two or more IAs were produced, verify consistency:
+
+- For every use case ID in the use cases document, confirm it appears in at least one IA's Traceability Matrix.
+- Use cases mapped to zero IAs are either legitimate non-UI items (CLI-internal, API-only, background jobs — document as "no user surface" with a one-line reason in each IA's Traceability Matrix) or genuine gaps. Treat genuine gaps as open questions or, if clear, fix by re-running the relevant IA with an instruction to cover them.
+
+IAs are now authoritative for their surfaces. All subsequent phases reference them.
 
 ---
 
-## Phase 1.5: Contract Registry
+## Phase 2: Contract Registry
 
-**Goal:** Produce `sdd/CONTRACT_REGISTRY.md` — the wire-format source of truth for all HTTP boundaries.
-
-This phase runs after SPLIT_WORK and before SPEC generation. It produces the document that SPEC agents, CODE_REVIEW agents, and VERIFICATION agents will reference for wire-format correctness.
+**Goal:** Produce `sdd/CONTRACT_REGISTRY.md` — the wire-format source of truth for all HTTP boundaries between independently-developed components.
 
 **When to run:** Run this phase if the project has multiple independently-developed components that communicate over HTTP (e.g., a server and a CLI client in different languages, multiple microservices, a server and a web frontend making API calls). If the project is a single-component application with no HTTP boundaries, skip this phase.
 
@@ -299,7 +353,31 @@ The CONTRACT_REGISTRY.md is now the authoritative wire-format reference. All sub
 
 ---
 
-## Phase 2: Specifications (Parallel)
+## Phase 3: Split Work
+
+**Goal:** Produce `sdd/SPLIT_WORK.md` from project requirements. With Phase 1 IAs and Phase 2 contracts in place, unit descriptions can anchor to exact page / command / screen / view / intent names and specific endpoints.
+
+1. Invoke the SPLIT_WORK skill, passing the IAs and contract registry as context:
+   ```bash
+   unset CLAUDECODE && claude -p "/SPLIT_WORK.md <requirements>{paste or reference the project requirements / architecture documents}</requirements> If sdd/WEB_IA.md, sdd/CLI_IA.md, sdd/MOBILE_IA.md, sdd/TUI_IA.md, or sdd/VOICE_IA.md exist, reference them in unit descriptions by exact page / command / screen / view / intent name — every UI unit must name the IA entry it implements. If sdd/CONTRACT_REGISTRY.md exists, reference the specific endpoint(s) each boundary unit implements. Write the output to sdd/SPLIT_WORK.md." --permission-mode bypassPermissions
+   ```
+2. Read `sdd/SPLIT_WORK.md`.
+3. **Check for Open Questions.** If the output has unresolved questions in a checklist (`- [ ]`):
+   - Analyze each question using the project context you have.
+   - Edit the file to resolve the questions (replace `- [ ]` with `- [x]` and write the decision into the appropriate section).
+   - Re-run the skill with the edited file as input, or if the edits are sufficient, proceed.
+4. **Verify IA anchoring.** For every UI-implementing unit, check that the description references an IA entry by exact name (e.g., "implements `ResourceDetail` screen per MOBILE_IA.md" or "implements `tool repo push` per CLI_IA.md"). If a unit is vague about which IA entry it implements, re-run SPLIT_WORK with explicit instructions to anchor.
+5. **Parse the output.** Extract:
+   - The list of unit IDs (U01, U02, ...)
+   - Each unit's description, files, tests, dependencies, interface, and the IA entries / endpoints it references
+   - The tier structure (which units are in which tier)
+   - The dependency graph
+
+Store this parsed information mentally — you will use it to drive all subsequent phases.
+
+---
+
+## Phase 4: Specifications (Parallel)
 
 **Goal:** Produce `sdd/{unit_id}/SPEC.md` for every work unit.
 
@@ -314,9 +392,10 @@ Process tiers in order (Tier 0 first, then Tier 1, etc.) because specs for later
 ### Parallel SPEC generation within a tier:
 
 Write a Python script (adapting the template above) that launches one Claude Code instance per unit. Each instance receives:
-- The unit definition from SPLIT_WORK.md
+- The unit definition from SPLIT_WORK.md (including the IA entries and endpoints the unit references)
 - The architecture/requirements documents (reference the file paths)
 - `sdd/CONTRACT_REGISTRY.md` (if it exists) — tell the agent to reference it for any HTTP boundary types
+- The relevant IA document (`sdd/{SURFACE}_IA.md`, if the unit is a UI unit) — tell the agent to reference the specific entry the unit implements
 - SPEC.md files of dependency units (for Tier 1+)
 - Instruction to write output to `sdd/{unit_id}/SPEC.md`
 
@@ -324,6 +403,12 @@ Write a Python script (adapting the template above) that launches one Claude Cod
 
 ```
 Reference sdd/CONTRACT_REGISTRY.md for wire-format field names, types, and casing conventions for any HTTP endpoints this unit implements. Use exact field names from the registry — do not derive wire formats from prose descriptions.
+```
+
+**IA context in SPEC prompts:** When the unit implements a UI element, include this instruction in the prompt (substituting the correct IA file for the surface):
+
+```
+Reference sdd/{SURFACE}_IA.md for the specific page / command / screen / view / intent this unit implements. Use exact names from the IA — section names, primary CTA roles, state matrix entries, exit codes / keybindings / slot names (whichever applies). Do not invent new UI entries or rename existing ones.
 ```
 
 Run the script and wait for all agents to complete.
@@ -338,18 +423,19 @@ For each unit in the tier:
    - Edit the SPEC.md: write the decision into the appropriate section, remove the question from Open Questions, and replace with "All questions resolved." if none remain.
 3. **Verify completeness.** Scan for placeholder language ("appropriate", "relevant", "as needed", "TBD", "TODO"). If found, re-run the spec for that unit.
 4. **Verify contract registry references.** For units that touch HTTP boundaries, check that section 6 includes an "HTTP Contract References" subsection citing specific CONTRACT_REGISTRY entries. If missing, re-run with explicit instructions to reference the registry.
+5. **Verify IA references.** For UI units, check that the spec cites the specific IA entry by exact name and uses the IA's section names, state matrix entries, and primary-action roles. If missing or vague, re-run with explicit instructions to anchor to the IA.
 
 Only proceed to the next tier after all specs in the current tier are complete and clean.
 
 ---
 
-## Phase 3: Per-Unit Pipeline (Sequential)
+## Phase 5: Per-Unit Pipeline (Sequential)
 
 **Goal:** For each work unit, execute: PLAN → IMPLEMENTATION → CODE_REVIEW → VERIFICATION.
 
 Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the same tier, process units sequentially — the per-unit pipeline is sequential to avoid code conflicts.
 
-### 3a. PLAN
+### 5a. PLAN
 
 1. Invoke:
    ```bash
@@ -359,7 +445,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 3. Check for Open Questions → resolve by editing.
 4. Verify the plan references real files and patterns from the codebase (spot-check a few paths with Glob/Grep).
 
-### 3b. IMPLEMENTATION
+### 5b. IMPLEMENTATION
 
 1. Invoke:
    ```bash
@@ -374,13 +460,13 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 4. Check for Open Questions → resolve by editing.
 5. **Commit the implementation.** Stage and commit all code changes produced by this phase. Use a descriptive commit message that identifies the unit (e.g., `U07: implement repository lifecycle`). Record the commit hash — you will pass it to code review as the review scope.
 
-### 3c. CODE_REVIEW
+### 5c. CODE_REVIEW
 
-1. Invoke with the commit scope from step 3b:
+1. Invoke with the commit scope from step 5b:
    ```bash
    unset CLAUDECODE && claude -p "/CODE_REVIEW.md Review the changes in commit:{commit_hash}. The project has a contract registry at sdd/CONTRACT_REGISTRY.md — validate that HTTP client/server code and test mocks conform to the registered wire formats. Write the review to sdd/{unit_id}/CODE_REVIEW.md." --permission-mode bypassPermissions
    ```
-   Pass the commit hash recorded in step 3b so the review is scoped to exactly the implementation changes. For fix rounds, pass the fix commit hash so the review only examines the fix.
+   Pass the commit hash recorded in step 5b so the review is scoped to exactly the implementation changes. For fix rounds, pass the fix commit hash so the review only examines the fix.
 
    If no CONTRACT_REGISTRY.md exists (single-component project), omit the contract registry instruction:
    ```bash
@@ -391,7 +477,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 4. **Pay special attention to contract registry mismatches.** If the Contracts Reviewer found mismatches between the code and CONTRACT_REGISTRY.md (wrong field names, missing serde annotations, mock data using wrong casing), these are high-priority fixes — they indicate the unit will fail at integration time even if it passes its own tests.
 5. Check for Open Questions → resolve by editing.
 
-### 3d. VERIFICATION
+### 5d. VERIFICATION
 
 1. Invoke:
    ```bash
@@ -412,7 +498,7 @@ Process units in dependency order (Tier 0 first, then Tier 1, etc.). Within the 
 
 ---
 
-## Phase 4: System Verification
+## Phase 6: System Verification
 
 **Goal:** Verify the composed application works end-to-end by running cross-cutting user scenarios.
 
@@ -428,23 +514,23 @@ This phase runs once after ALL units have completed their per-unit pipelines. It
 
 3. **Check bootstrap status.** Look at the `bootstrap` frontmatter field:
    - **pass** → services started, proceed to check scenarios.
-   - **fail** → the system cannot start. This is a Phase 5 trigger — skip scenario analysis and go directly to TRIAGE.
+   - **fail** → the system cannot start. This is a Phase 7 trigger — skip scenario analysis and go directly to TRIAGE.
 
 4. **Check scenario results.** Look at the `verdict` frontmatter field:
    - **pass** → all scenarios passed. The application is done. Report success and stop.
-   - **partial** or **fail** → failures exist. Proceed to Phase 5 (Stabilization).
+   - **partial** or **fail** → failures exist. Proceed to Phase 7 (Stabilization).
 
 5. **Check failure categories.** Look at `failure_categories` in frontmatter. This gives a quick sense of what went wrong — contract mismatches, missing config, logic bugs, etc. — before reading the full report.
 
 ---
 
-## Phase 5: Stabilization
+## Phase 7: Stabilization
 
 **Goal:** Diagnose system verification failures, trace them to design artifacts, and produce a fix plan.
 
-This phase only runs when Phase 4 finds failures. It does NOT contain inner implementation loops — it produces a triage report and the workflow re-enters from Phase 2 after the human (or orchestrator) updates the design artifacts.
+This phase only runs when Phase 6 finds failures. It does NOT contain inner implementation loops — it produces a triage report, applies the artifact updates, and re-enters the pipeline from the **appropriate earlier phase** — which phase depends on which artifact was updated (see Re-entry Depth below).
 
-### 5a. TRIAGE
+### 7a. TRIAGE
 
 1. Invoke:
    ```bash
@@ -459,7 +545,7 @@ This phase only runs when Phase 4 finds failures. It does NOT contain inner impl
 
 5. **Review the fix batches.** Read each batch and its artifact update instructions. Verify they are specific and actionable — not vague references like "update the architecture."
 
-### 5b. Apply Artifact Updates
+### 7b. Apply Artifact Updates
 
 Read the "Fix Batches" section of TRIAGE.md and apply the artifact updates. Process batches in order (Batch 1 first, then Batch 2, etc.).
 
@@ -467,29 +553,39 @@ For each fix item:
 1. Read the artifact to update (the file path specified in the fix item).
 2. Apply the change described in the fix item. Use Edit to make the specific changes.
 3. If the fix requires adding endpoint entries to CONTRACT_REGISTRY.md, add them with the exact field names, types, and shapes specified in the triage.
-4. If the fix requires updating ARCHITECTURE.md, make the specific update described.
+4. If the fix requires adding a page / command / screen / view / intent to an IA document, add the entry following that IA's per-item blueprint structure, including the full state matrix.
+5. If the fix requires updating ARCHITECTURE.md, make the specific update described.
 
 **What you can update directly:**
+- IA documents (WEB_IA.md / CLI_IA.md / MOBILE_IA.md / TUI_IA.md / VOICE_IA.md) — add missing pages / commands / screens / views / intents, fix URL-strategy or command-grammar gaps, resolve ambiguous state matrix entries, add missing cross-channel traceability
 - CONTRACT_REGISTRY.md — add missing entries, correct field names/types, fix casing conventions
-- Unit SPECs — add missing contract references, correct wire-format field names, add mock fidelity requirements
+- SPLIT_WORK.md — add missing units for newly surfaced IA entries, correct dependency tiers
+- Unit SPECs — add missing contract references, correct wire-format field names, add mock fidelity requirements, add missing IA references
 - Configuration files — add missing env vars, fix docker-compose entries
 
 **What you should flag for human review:**
 - Major ARCHITECTURE.md changes that alter the system design
-- Adding entirely new work units to SPLIT_WORK.md
+- Substantive changes to product scope (PROPOSAL.md / USE_CASES.md)
 - Changes that affect the fundamental approach of multiple units
 
-### 5c. Re-enter Pipeline
+### 7c. Re-enter Pipeline
 
-After applying artifact updates:
+After applying artifact updates, re-enter from the **appropriate earlier phase**. The correct re-entry depth depends on which artifacts were updated:
 
-1. Read the "Pipeline Re-entry Plan" section of TRIAGE.md.
-2. Identify which units need SPEC regeneration and which need re-implementation.
-3. **Re-enter from Phase 2** for the affected units:
-   - Regenerate SPECs for affected units (they will now reference the updated CONTRACT_REGISTRY and architecture).
-   - Run the per-unit pipeline (Phase 3) for each affected unit.
-4. After all affected units are reprocessed, **re-run Phase 4** (System Verification) to confirm the fixes.
-5. If Phase 4 still has failures, loop back to Phase 5 (Triage).
+| Artifact updated | Re-enter from |
+|------------------|---------------|
+| An IA document (WEB_IA / CLI_IA / MOBILE_IA / TUI_IA / VOICE_IA) | **Phase 1** — regenerate the affected IA if the fix is structural; otherwise proceed from Phase 3 (Split Work) to realign units; then Phase 4 for affected specs |
+| CONTRACT_REGISTRY.md | **Phase 2** if the registry itself changed structure; otherwise Phase 4 (Specifications) to regenerate specs referencing the updated contracts |
+| SPLIT_WORK.md (units added/split/moved) | **Phase 3** — regenerate specs for affected units at Phase 4 |
+| A unit SPEC only | **Phase 4** — regenerate the single spec, then Phase 5 per-unit pipeline |
+| Plan-level issue (implementation approach) | **Phase 5** at the per-unit level — regenerate PLAN, then IMPLEMENTATION |
+| Configuration / docker-compose / env only | **Phase 6** — re-run system verification directly |
+
+Use judgment. Minimize re-entry depth — if a single-file SPEC fix resolves the issue, do not regenerate the IA. If the fix touches structure (adds a new IA entry or a new unit), go deeper.
+
+Read the "Pipeline Re-entry Plan" section of TRIAGE.md for the specific re-entry instruction for each fix batch.
+
+After all affected artifacts are reprocessed, **re-run Phase 6** (System Verification) to confirm the fixes. If Phase 6 still has failures, loop back to Phase 7 (Triage).
 
 **Stabilization loop limit:** Maximum 3 triage-fix-verify cycles. If the system still has failures after 3 cycles, report the remaining issues and stop — the failures may require human architectural decisions that the orchestrator cannot make.
 
@@ -580,15 +676,20 @@ After every skill invocation, perform these checks on the output file:
 3. **No placeholder language.** Grep for: "appropriate", "relevant", "as needed", "TBD", "TODO", "etc.", "placeholder". If found, re-run with explicit instructions to be precise.
 4. **Open Questions section.** If present and non-empty, resolve (see above).
 5. **Skill-specific checks:**
-   - SPLIT_WORK: has at least one unit defined
+   - WEB_IA: `pages_documented` > 0; `use_cases_covered` and `use_cases_total` present
+   - CLI_IA: `commands_documented` > 0 and `exit_codes_defined` > 0; scriptability contract stated
+   - MOBILE_IA: `screens_documented` > 0; `platforms` declared; Navigation Model, Deep-Link Strategy, and Permissions Strategy sections present
+   - TUI_IA: `views_documented` > 0 and `global_keybindings` > 0; Layout Model, Mode Model, Keybinding Matrix, and Focus Model sections present
+   - VOICE_IA: `intents_documented` > 0; `confirmation_intents` matches the destructive set; Invocation Model, Slot Model, Dialog Model, and Privacy & Safety Constraints sections present
+   - SPLIT_WORK: has at least one unit defined; UI-implementing units name the IA entry they implement
    - CONTRACT_REGISTRY: has at least one boundary documented, `endpoints_documented` > 0 in frontmatter
-   - SPEC: all 10 sections present; section 6 includes HTTP Contract References if the unit touches an HTTP boundary
+   - SPEC: all 10 sections present; section 6 includes HTTP Contract References if the unit touches an HTTP boundary; UI units cite the specific IA entry by exact name
    - PLAN: has implementation steps with file paths
    - IMPLEMENTATION: has test results section
    - CODE_REVIEW: has verdict (PASS/CONCERNS/FAIL); contract registry mismatches section present if CONTRACT_REGISTRY exists
    - VERIFICATION: has verdict (PASS/PARTIAL/FAIL); End-to-End Testing and Mock Fidelity sections present
    - SYSTEM_VERIFICATION: has bootstrap status and scenario verdict; failure categories listed if failures exist
-   - TRIAGE: has fix batches ordered by dependency; pipeline re-entry plan with units to reprocess
+   - TRIAGE: has fix batches ordered by dependency; pipeline re-entry plan with units to reprocess and re-entry phase per batch
 
 ---
 
@@ -596,12 +697,14 @@ After every skill invocation, perform these checks on the output file:
 
 After completing each major milestone, report progress:
 
-- After SPLIT_WORK: "Split into N work units across M tiers. Critical path: N units deep."
+- Before Phase 1 IA generation: "Chosen IAs: {list} — rationale: {why these, why not others}."
+- After each IA produced: "{IA_NAME} produced: {item count} {items}, {use_cases_covered}/{use_cases_total} use cases mapped."
 - After CONTRACT_REGISTRY: "Contract registry produced: N boundaries, M endpoints documented, K open questions."
+- After SPLIT_WORK: "Split into N work units across M tiers. Critical path: N units deep. {K} UI units anchored to IA entries."
 - After each tier's SPECs: "Tier X specifications complete (N units)."
 - After each unit's pipeline: "Unit {id} complete: PLAN -> IMPLEMENTATION -> CODE_REVIEW ({verdict}) -> VERIFICATION ({verdict})."
 - After SYSTEM_VERIFICATION: "System verification: {verdict}. {N} scenarios passed, {M} failed."
-- After TRIAGE: "Triage complete: {N} failures traced, {M} fix batches, {K} units need reprocessing."
+- After TRIAGE: "Triage complete: {N} failures traced, {M} fix batches, {K} units need reprocessing. Re-entry depth per batch: {phases}."
 - After stabilization loop: "Stabilization cycle {N}: {result}."
 - After all phases: final summary.
 
@@ -642,72 +745,95 @@ If SYSTEM_VERIFICATION keeps failing after 3 triage-fix-verify cycles with the s
 This is the full algorithm you follow:
 
 ```
-1. Read project requirements / architecture documents
+1. Read product proposal, use cases, and architecture documents
 2. Create sdd/ directory
-3. Run SPLIT_WORK skill → sdd/SPLIT_WORK.md
-4. Inspect and resolve open questions in SPLIT_WORK.md
-5. Parse units and tiers from SPLIT_WORK.md
 
-6. If the project has multi-component HTTP boundaries:
-   6a. Run CONTRACT_REGISTRY skill → sdd/CONTRACT_REGISTRY.md
-   6b. Inspect, resolve open questions, verify completeness
+3. PHASE 1 — INFORMATION ARCHITECTURE:
+   3a. Determine the IA set (from explicit prompt, or inferred from product + architecture)
+   3b. Log chosen IAs and rationale
+   3c. Skip entirely if the project is headless with no human surface — go to step 4
+   3d. For each chosen surface, sequentially:
+       Run the corresponding IA skill → sdd/{SURFACE}_IA.md
+       Each subsequent IA references the previously produced IAs for cross-channel traceability
+   3e. Per IA: resolve open questions, verify frontmatter counts, check for placeholder language
+   3f. If ≥ 2 IAs produced: cross-channel traceability sweep across all IAs
 
-7. For each tier (starting from Tier 0):
-   7a. Gather dependency SPECs (from previous tiers)
-   7b. Write Python script to generate SPECs for all units in this tier in parallel
+4. PHASE 2 — CONTRACT REGISTRY:
+   If the project has multi-component HTTP boundaries:
+   4a. Run CONTRACT_REGISTRY skill → sdd/CONTRACT_REGISTRY.md
+   4b. Inspect, resolve open questions, verify completeness
+
+5. PHASE 3 — SPLIT WORK:
+   5a. Run SPLIT_WORK skill, passing IAs and CONTRACT_REGISTRY as context → sdd/SPLIT_WORK.md
+   5b. Inspect and resolve open questions
+   5c. Verify every UI-implementing unit names the IA entry it implements
+   5d. Parse units, tiers, dependencies from SPLIT_WORK.md
+
+6. PHASE 4 — SPECIFICATIONS:
+   For each tier (starting from Tier 0):
+   6a. Gather dependency SPECs (from previous tiers)
+   6b. Write Python script to generate SPECs for all units in this tier in parallel
        - Include CONTRACT_REGISTRY.md reference in prompts for HTTP boundary units
-   7c. Run the Python script
-   7d. For each unit in the tier:
+       - Include the relevant IA document in prompts for UI units, naming the specific entry the unit implements
+   6c. Run the Python script
+   6d. For each unit in the tier:
        - Read SPEC.md, resolve open questions, verify completeness
        - Verify contract registry references for HTTP boundary units
+       - Verify IA references for UI units
 
-8. For each unit in dependency order:
+7. PHASE 5 — PER-UNIT PIPELINE:
+   For each unit in dependency order:
 
-   8a. PLAN:
+   7a. PLAN:
        Run PLAN skill → sdd/{unit}/PLAN.md
        Inspect, resolve open questions
 
-   8b. IMPLEMENTATION:
+   7b. IMPLEMENTATION:
        Run IMPLEMENTATION skill → sdd/{unit}/IMPLEMENTATION.md
        Inspect output
-       If problems indicate plan gaps → go to 8a with context
+       If problems indicate plan gaps → go to 7a with context
        Commit all code changes, record commit hash
 
-   8c. CODE_REVIEW:
+   7c. CODE_REVIEW:
        Run CODE_REVIEW skill (with CONTRACT_REGISTRY reference) → sdd/{unit}/CODE_REVIEW.md
        Read findings, analyze using judgment:
-       - PASS → continue to 8d
+       - PASS → continue to 7d
        - Contract mismatches → fix via IMPLEMENTATION, commit, re-review
        - Implementation bugs → fix via IMPLEMENTATION, commit, re-review
-       - Design problems → go back to 8a
+       - Design problems → go back to 7a
        - Problems not converging → escalate or skip
 
-   8d. VERIFICATION:
+   7d. VERIFICATION:
        Run VERIFICATION skill (with e2e + mock fidelity instructions) → sdd/{unit}/VERIFICATION.md
        Inspect verdict and mock fidelity findings
-       If failures → analyze root cause, go back to 8a or 8b
+       If failures → analyze root cause, go back to 7a or 7b
        If mock fidelity issues → fix via IMPLEMENTATION
        If PASS → unit complete
 
-9. SYSTEM VERIFICATION:
+8. PHASE 6 — SYSTEM VERIFICATION:
    Run SYSTEM_VERIFICATION skill → sdd/SYSTEM_VERIFICATION.md
    Check bootstrap status and scenario verdict
    If PASS → done. Report success.
-   If FAIL/PARTIAL → continue to step 10.
+   If FAIL/PARTIAL → continue to step 9.
 
-10. STABILIZATION LOOP (max 3 cycles):
-   10a. Run TRIAGE skill → sdd/TRIAGE.md
-   10b. Inspect triage, resolve open questions
-   10c. Apply artifact updates from fix batches
-        (CONTRACT_REGISTRY, SPECs, architecture, config)
-   10d. Re-enter from step 7 for affected units only
-   10e. Re-run step 8 (per-unit pipeline) for affected units
-   10f. Re-run step 9 (SYSTEM_VERIFICATION)
-   10g. If PASS → done
-   10h. If FAIL → increment cycle counter, go to 10a
-   10i. If 3 cycles exhausted → report remaining failures, stop
+9. PHASE 7 — STABILIZATION LOOP (max 3 cycles):
+   9a. Run TRIAGE skill → sdd/TRIAGE.md
+   9b. Inspect triage, resolve open questions
+   9c. Apply artifact updates from fix batches
+       (IAs, CONTRACT_REGISTRY, SPLIT_WORK, SPECs, architecture, config)
+   9d. Re-enter from the appropriate earlier phase per fix batch:
+       - IA change → Phase 1 (or Phase 3 / Phase 4 if non-structural)
+       - Contract change → Phase 2 (or Phase 4 if non-structural)
+       - Unit split change → Phase 3
+       - Spec change only → Phase 4
+       - Plan-level issue → Phase 5 at the per-unit level
+       - Config only → Phase 6 directly
+   9e. Re-run the remaining phases up to Phase 6 (System Verification)
+   9f. If PASS → done
+   9g. If FAIL → increment cycle counter, go to 9a
+   9h. If 3 cycles exhausted → report remaining failures, stop
 
-11. Report final status for all units and system verification
+10. Report final status for all units and system verification
 ```
 
 ---
@@ -716,7 +842,7 @@ This is the full algorithm you follow:
 
 - **Never write application code.** You orchestrate. The IMPLEMENTATION skill's agent writes code.
 - **Never debug test failures.** If tests fail, pass the failure context back to the relevant skill agent.
-- **Never modify application source files directly.** You only read and edit SDD output files (SPEC.md, PLAN.md, etc.) and design artifacts (CONTRACT_REGISTRY.md, ARCHITECTURE.md) during stabilization.
+- **Never modify application source files directly.** You only read and edit SDD output files (SPEC.md, PLAN.md, etc.) and design artifacts (IAs, CONTRACT_REGISTRY.md, SPLIT_WORK.md, ARCHITECTURE.md) during stabilization.
 - **Never skip the output inspection.** Every file gets checked before you proceed.
 - **Never parse stdout for data.** All data flows through files.
 - **Never run more than 6 parallel agents.** Respect API rate limits.
