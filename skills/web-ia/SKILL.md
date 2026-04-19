@@ -7,7 +7,7 @@ description: Generate a web information architecture registry — page inventory
 
 ## Objective
 
-Produce a WEB_IA.md that serves as the single source of truth for a web application's information architecture: the full page-template inventory, URL strategy, global navigation, per-page blueprint (purpose, sections, primary CTA, data dependencies, state matrix, entry/exit points), cross-page flows, shared UI surfaces, and bidirectional traceability from product use cases to pages. An agent or designer reading this document knows exactly what pages exist, what lives on each page, how users move between them, and how every use case is realized on the web surface — without making any independent architectural or content decisions. WEB_IA sits between product requirements (proposal, use cases) and per-unit web SPECs, the same way CONTRACT_REGISTRY sits between architecture and per-unit backend SPECs.
+Produce a WEB_IA.md that serves as the single source of truth for a web application's information architecture: the full page-template inventory, URL strategy, global navigation, per-page blueprint (purpose, sections, primary CTA, data dependencies, state matrix, entry/exit points), cross-page flows, shared UI surfaces, and bidirectional traceability from product use cases to pages. An agent or designer reading this document knows exactly what pages exist, what lives on each page, how users move between them, and how every use case is realized on the web surface — without making any independent architectural or content decisions. WEB_IA sits between product requirements (proposal, use cases) and per-unit web SPECs, the same way INTERFACES sits between architecture and per-unit backend SPECs.
 
 ---
 
@@ -19,7 +19,7 @@ Produce a WEB_IA.md that serves as the single source of truth for a web applicat
 4. **Existing web codebase** (auto-discovered) — discover routes, pages, and shared components from source (e.g., route files, `pages/` or `app/` directories, router config). Treat as reference only — WEB_IA is the target state, not a mirror of the current state.
 5. **Decision documents** (optional) — architectural decisions that constrain the IA (e.g., "all write actions require confirmation modal", "workspace context is selected via URL segment").
 6. **Design constraints document** (optional) — brand/DESIGN.md/impeccable config. Read only to pick up IA-affecting constraints (e.g., mandated navigation pattern). Do not pull visual-design details in.
-7. **Contract registry** (optional) — if present, per-page data dependencies may reference endpoints by name.
+7. **Interface contract** (optional) — if INTERFACES.md is present, per-page data dependencies may reference endpoints by `EP-name`.
 
 The user may override scope (e.g., "only the authenticated app area, not marketing site"). Support that by recording the narrowed scope in the Identity & Context section and excluding out-of-scope surfaces from the inventory.
 
@@ -141,7 +141,7 @@ Modals, drawers, toasts, banners, and persistent global affordances live in the 
 
 ### 13. Conditional sections must be omitted, not left empty
 
-If Accessibility Commitments, SEO & Crawl, Internationalization, Telemetry Hooks, or Authenticated Context sections are not applicable for the project, omit them entirely. Do not leave them present with "N/A" content. Tight output is the house style (contract-registry is the reference).
+If Accessibility Commitments, SEO & Crawl, Internationalization, Telemetry Hooks, or Authenticated Context sections are not applicable for the project, omit them entirely. Do not leave them present with "N/A" content. Tight output is the house style.
 
 ### 14. Precision over vagueness
 
@@ -247,7 +247,7 @@ open_questions: {N}
 
 **Data dependencies:**
 - {what the page needs to render — e.g., "resource metadata, viewer permissions, list of child items"}
-- {if a contract registry exists: endpoint references by name}
+- {if a interface contract exists: endpoint references by name}
 
 **States:**
 
@@ -406,7 +406,7 @@ open_questions: {N}
 
 - **Product proposal and use cases:** This document realizes use cases on the web surface. Use case IDs in the traceability matrix match the source use cases document.
 - **Per-unit SPECs:** SPECs for web units must reference the WEB_IA entry for the page(s) or shared surface(s) they implement, and use section-and-role names from this document.
-- **CONTRACT_REGISTRY.md** (if present): per-page data dependencies may reference endpoint names; wire-format shapes are owned by the contract registry, not redefined here.
+- **INTERFACES.md** (if present): per-page data dependencies may reference endpoint names; wire-format shapes are owned by the interface contract, not redefined here.
 - **DESIGN.md / impeccable / visual execution loop:** visual design decisions (colors, typography, spacing, component library, imagery) are owned downstream of this document, not here.
 - **CLI_IA.md** (future, if present): command-line surfaces are a parallel document, not part of this one.
 
@@ -445,7 +445,7 @@ open_questions: {N}
 - Component-level implementation details (props, hooks, state management, component APIs) — owned by per-unit `SPEC.md`
 - Final UX copy and microcopy — owned by a UX-writing phase
 - Wireframes and mockups — produced separately in Figma / v0 / equivalent after the IA is settled
-- Backend and API wire formats — owned by `CONTRACT_REGISTRY.md`
+- Backend and API wire formats — owned by `INTERFACES.md`
 - Persona research and user research — owned by a separate research phase
 - CLI information architecture — owned by a future `CLI_IA.md` skill
 - Native and mobile-app information architecture — this skill is web-only (routes, URLs, browser, responsive)

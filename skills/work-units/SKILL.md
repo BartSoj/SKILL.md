@@ -1,6 +1,6 @@
 ---
-name: SPLIT_WORK.md
-description: Split architecture into implementation work units. Use when asked to split the project into smaller work unit, module, tasks that can be independently implemented.
+name: WORK_UNITS.md
+description: Split architecture into implementation work units — the smallest independently-implementable slices (≤ 400 LOC, ≤ 10 tests, ≤ 6 files, 1 concept) organised into a tiered dependency DAG with per-unit concept, files, tests, dependencies, and interface. Use when asked to split the project into smaller work units, decompose the architecture, produce the work-unit catalogue, plan implementation slices, or produce a WORK_UNITS.md.
 ---
 
 # Task: Split Architecture Into Implementation Work Units

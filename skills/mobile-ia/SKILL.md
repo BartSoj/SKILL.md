@@ -19,7 +19,7 @@ Produce a MOBILE_IA.md that serves as the single source of truth for a native mo
 4. **Existing mobile codebase** (auto-discovered) — discover current screens, navigation graph, deep-link schemes, and declared permissions from source (e.g., `NavGraph.kt`, `AppCoordinator.swift`, route tables, `AndroidManifest.xml`, `Info.plist`). Treat as reference only — MOBILE_IA is the target state, not a mirror of the current state.
 5. **Decision documents** (optional) — architectural decisions that constrain the IA (e.g., "biometric re-auth required after 5 minutes background", "all destructive actions require native confirmation alert").
 6. **Sibling IA documents** (optional) — `WEB_IA.md`, `CLI_IA.md`, `VOICE_IA.md`, `TUI_IA.md`. If present, use-case traceability must be consistent across channels. Every use case surfaces on at least one channel or is explicitly classified as having none.
-7. **Contract registry** (optional) — if present, per-screen data dependencies may reference endpoints by name; wire formats are owned by CONTRACT_REGISTRY.md, not redefined here.
+7. **Interface contract** (optional) — if INTERFACES.md is present, per-screen data dependencies may reference endpoints by `EP-name`; wire formats are owned by INTERFACES.md, not redefined here.
 
 The user may override scope (e.g., "iOS only, defer Android", or "phone only, defer tablet"). Support that by recording the narrowed scope in the Identity & Context section and excluding out-of-scope surfaces from the inventory.
 
@@ -489,7 +489,7 @@ grouped by the same area headings.
 
 - **Product proposal and use cases:** This document realizes use cases on the native-mobile surface. Use-case IDs in the traceability matrix match the source use cases document.
 - **Per-unit SPECs:** SPECs for mobile units must reference the MOBILE_IA entry for the screen(s) or shared surface(s) they implement, and use screen names, section roles, permission names, and deep-link patterns from this document verbatim.
-- **CONTRACT_REGISTRY.md** (if present): per-screen data dependencies may reference endpoint names; wire-format shapes are owned by the contract registry, not redefined here.
+- **INTERFACES.md** (if present): per-screen data dependencies may reference endpoint names; wire-format shapes are owned by the interface contract, not redefined here.
 - **WEB_IA.md / CLI_IA.md / VOICE_IA.md / TUI_IA.md** (if present): parallel IA documents for other surfaces. Use-case traceability must be consistent across all IAs — every use case surfaces on at least one channel or is explicitly classified as having none.
 - **DESIGN.md / platform HIG and Material compliance:** visual design decisions (colors, typography, spacing, animation curves, iconography) are owned downstream of this document, not here.
 
@@ -536,7 +536,7 @@ grouped by the same area headings.
 - Terminal-invoked binaries — owned by `CLI_IA.md`
 - Full voice UIs — owned by `VOICE_IA.md` (App Intents / Siri Shortcuts / Google Assistant as mobile-app invocation points are in scope here)
 - Desktop TUI apps — owned by `TUI_IA.md`
-- Backend / API wire formats — owned by `CONTRACT_REGISTRY.md`
+- Backend / API wire formats — owned by `INTERFACES.md`
 - App signing, code signing, distribution pipelines, store submission automation — owned by DEPLOYMENT docs
 - Persona research and user research — owned by a separate research phase
 - Database schema, business logic, algorithm design — owned by architecture and unit SPECs

@@ -16,7 +16,7 @@ Produce a SYSTEM_VERIFICATION.md that documents whether the fully composed appli
 1. **Use cases or user scenarios** (required) — the cross-cutting user flows to test. Accepted formats: a USE_CASES.md document, user stories, feature descriptions, or freeform instructions. Each scenario should describe a complete user journey that exercises multiple components in sequence.
 2. **Application start instructions** (optional) — how to bootstrap the full stack. If not provided, discover from the codebase: docker-compose files, Makefiles, package.json scripts, README setup instructions. The skill must start ALL services, not just one.
 3. **Architecture documents** (optional) — system structure, component list, service dependencies. Helps identify what needs to start and in what order.
-4. **CONTRACT_REGISTRY.md** (auto-discovered) — if present, used to verify that cross-boundary communication uses correct wire formats during live testing.
+4. **INTERFACES.md** (auto-discovered) — if present, used to verify that cross-boundary communication uses correct wire formats during live testing.
 5. **Per-unit VERIFICATION.md files** (optional) — prior verification results. Useful for understanding what already works at the unit level, so system verification can focus on cross-boundary behavior.
 
 ---

@@ -45,7 +45,7 @@ When iterating the inventory in Phase 5 of the workflow, copy the block below pe
 
 (Or "Voice-only — no multimodal expansion." when the app does not target screen devices.)
 
-**Data dependencies:** {what the intent needs from backend — e.g., "user's namespace, resource metadata, fork-permission check". Reference contract-registry endpoint names when present.}
+**Data dependencies:** {what the intent needs from backend — e.g., "user's namespace, resource metadata, fork-permission check". Reference INTERFACES endpoint names (`EP-name`) when present.}
 
 **Context read:** {context keys this intent consumes — e.g., `last_resource` for follow-up resolution, `user_preferences.default_namespace`. Or "None."}
 
@@ -94,7 +94,7 @@ Repeat the block for every intent template in the inventory.
 - **Primary response role** — one role describing the success response. Analog of the primary CTA in web IA. Every non-utility intent declares exactly one primary response role (Rule 2). If an intent legitimately has two roles, split it or justify the pairing inline.
 - **Alternative response variations** — response roles that vary by context (first-use vs repeat, verbose vs condensed, screen-present vs voice-only). Roles only — not literal strings (Rule 7).
 - **Multimodal expansion** — if the app targets screen devices, declare the visual-card content role, touch controls, and companion-push behavior. If voice-only, state "Voice-only — no multimodal expansion." Reference the Multimodal Expansion section's conventions.
-- **Data dependencies** — high-level, not implementation. Reference contract-registry endpoint names if a CONTRACT_REGISTRY.md exists; do not inline wire formats.
+- **Data dependencies** — high-level, not implementation. Reference INTERFACES endpoint names (`EP-name`) if an INTERFACES.md exists; do not inline wire formats.
 - **Context read / written / cleared** — use the context keys declared in the Dialog Model & Context section (Rule 11). Include TTLs inline when they differ from the section default.
 - **Failure matrix** — every row from the template. Use "N/A — {reason}" for genuinely inapplicable rows. Session column is *remain open* (re-prompt expected), *end* (clean close), or conditional. Context column lists keys written or cleared at this state.
 - **Handoff paths** — reference targets from the Fallback & Handoff Strategy (Rule 13) by name. Do not redefine the handoff flow.

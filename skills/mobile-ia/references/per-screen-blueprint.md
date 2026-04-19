@@ -31,7 +31,7 @@ When iterating the inventory in Phase 4 of the workflow, copy the block below pe
 
 **Data dependencies:**
 - {what the screen needs to render — e.g., "resource metadata, viewer permissions, child-item list"}
-- {if a contract registry exists: endpoint references by name}
+- {if a INTERFACES.md exists: endpoint references by name}
 
 **Gestures supported:** {pull-to-refresh, swipe-to-delete, long-press, pinch, swipe-between-tabs, haptics triggered — or "None beyond platform defaults."}
 
@@ -98,7 +98,7 @@ Repeat the block for every screen template in the inventory.
 - **Auth requirement** — "public" means no credentials needed; "authenticated" requires a signed-in user; "authenticated-with-permission" requires a specific scope or role — name it.
 - **Sections / blocks** — describe each visible region by role and content, in the order it appears. Do not name the component, do not describe its visual appearance. Pull header / content / footer regions into separate entries when they serve separate roles.
 - **Primary CTA** — the single action the screen is designed to invite. If the screen has no primary CTA (chrome, nav-container, auth-gate, error, splash, onboarding-slide, informational), classify it explicitly — do not leave blank.
-- **Data dependencies** — what the screen needs to render. High-level only — "resource metadata, viewer permissions, child-item list". If a contract registry exists, cite endpoints by name.
+- **Data dependencies** — what the screen needs to render. High-level only — "resource metadata, viewer permissions, child-item list". If a INTERFACES.md exists, cite endpoints by name.
 - **Gestures supported** — the mobile-specific gesture contract. Pull-to-refresh, swipe-to-delete, long-press, pinch-to-zoom, swipe-between-tabs, haptic feedback triggered. Platform-default gestures (tap, nav-bar back) are assumed — list only screen-specific or non-default behaviors.
 - **Orientation support** — portrait-only, landscape-only, or both. If the screen honors the app-level default without deviation, write "Follows app-level default." and do not restate the default.
 - **Permissions involved** — by name from the Permissions Strategy table. If the screen depends on camera, write "camera". Do not re-describe the permission's prompting or denial behavior — that lives in the Permissions Strategy section.

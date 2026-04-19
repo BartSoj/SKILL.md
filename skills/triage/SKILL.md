@@ -7,7 +7,7 @@ description: Analyze system verification failures, trace each to its originating
 
 ## Objective
 
-Given a SYSTEM_VERIFICATION.md (or equivalent failure report) documenting integration failures in a composed application, produce a TRIAGE.md that traces every failure to the specific design artifact that, if correct, would have prevented the bug — then groups related issues into ordered fix batches and provides specific artifact update instructions. The output enables a human to update the right documents (architecture, contract registry, specs) so the pipeline can re-run and produce correct implementations.
+Given a SYSTEM_VERIFICATION.md (or equivalent failure report) documenting integration failures in a composed application, produce a TRIAGE.md that traces every failure to the specific design artifact that, if correct, would have prevented the bug — then groups related issues into ordered fix batches and provides specific artifact update instructions. The output enables a human to update the right documents (architecture, interface contract, specs) so the pipeline can re-run and produce correct implementations.
 
 ---
 
@@ -15,11 +15,11 @@ Given a SYSTEM_VERIFICATION.md (or equivalent failure report) documenting integr
 
 1. **System verification report** (required) — SYSTEM_VERIFICATION.md or equivalent document listing failures with symptoms, evidence, categories, and affected components.
 2. **Architecture documents** (auto-discovered) — system structure, endpoint tables, component descriptions, conventions. Used to trace failures to architectural gaps.
-3. **CONTRACT_REGISTRY.md** (auto-discovered) — wire-format contracts. Used to identify missing or incorrect contract entries.
+3. **INTERFACES.md** (auto-discovered) — wire-format contracts. Used to identify missing or incorrect contract entries.
 4. **Unit SPECs** (auto-discovered) — per-unit specifications. Used to trace whether a spec was wrong, incomplete, or correctly specified but incorrectly implemented.
 5. **Unit IMPLEMENTATION.md files** (optional) — implementation records. Used to check whether implementations deviated from their specs.
 6. **Decision documents** (optional) — architectural decisions. Used to understand the rationale behind choices that may have contributed to failures.
-7. **SPLIT_WORK.md** (auto-discovered) — work unit decomposition. Used to identify gaps where no unit covers a needed capability.
+7. **WORK_UNITS.md** (auto-discovered) — work unit decomposition. Used to identify gaps where no unit covers a needed capability.
 
 ---
 
@@ -40,10 +40,10 @@ For each failure:
 
 | Category | What went wrong | Typical artifact gap |
 |----------|----------------|---------------------|
-| **Contract mismatch** | Client and server disagree on wire format — field names, casing, structure, types | CONTRACT_REGISTRY.md missing or incorrect entry; SPEC derived wire format from prose instead of registry |
+| **Contract mismatch** | Client and server disagree on wire format — field names, casing, structure, types | INTERFACES.md missing or incorrect entry; SPEC derived wire format from prose instead of interface contract |
 | **Missing configuration** | Env var, migration, library setup, dev script not present | SPEC for infrastructure/scaffold unit incomplete; ARCHITECTURE.md missing config section |
 | **Logic bug** | Code does the wrong thing despite correct contracts | SPEC was wrong (spec bug) or IMPLEMENTATION deviated from spec (implementation bug) |
-| **Missing feature** | Something needs to exist but was never specified | SPLIT_WORK.md gap — no unit covers this capability; ARCHITECTURE.md missing component |
+| **Missing feature** | Something needs to exist but was never specified | WORK_UNITS.md gap — no unit covers this capability; ARCHITECTURE.md missing component |
 | **Third-party library** | Library requires setup not documented in architecture | ARCHITECTURE.md or SPEC missing library-specific requirements |
 
 ### Phase 2: Artifact Tracing
@@ -52,13 +52,13 @@ For each failure, identify THE specific artifact that is the root cause — the 
 
 **Tracing rules:**
 
-1. **Contract mismatches trace to the contract source of truth.** If CONTRACT_REGISTRY.md exists but is missing the endpoint → the registry is the root cause. If no contract registry exists → the absence of a shared contract source is the root cause. If the registry has the correct entry but a SPEC ignored it → the SPEC is the root cause.
+1. **Contract mismatches trace to the interface contract source of truth.** If INTERFACES.md exists but is missing the endpoint → INTERFACES.md is the root cause. If no INTERFACES.md exists → the absence of a shared interface contract is the root cause. If INTERFACES has the correct entry but a SPEC ignored it → the SPEC is the root cause.
 
-2. **Missing configuration traces to the owning unit's SPEC.** Every piece of infrastructure (env loading, migration scripts, docker-compose config) should be owned by a unit. If the SPEC doesn't mention it, the SPEC is incomplete. If no unit owns it, SPLIT_WORK.md has a gap.
+2. **Missing configuration traces to the owning unit's SPEC.** Every piece of infrastructure (env loading, migration scripts, docker-compose config) should be owned by a unit. If the SPEC doesn't mention it, the SPEC is incomplete. If no unit owns it, WORK_UNITS.md has a gap.
 
 3. **Logic bugs trace to either SPEC or IMPLEMENTATION.** Read the SPEC for the affected unit. If the SPEC correctly describes the expected behavior but the implementation does something different, the implementation is the root cause. If the SPEC itself describes wrong behavior, the SPEC is the root cause.
 
-4. **Missing features trace to SPLIT_WORK.md or ARCHITECTURE.md.** If the feature should exist but no unit covers it, SPLIT_WORK.md has a decomposition gap. If the feature isn't mentioned anywhere in the architecture, ARCHITECTURE.md has a gap.
+4. **Missing features trace to WORK_UNITS.md or ARCHITECTURE.md.** If the feature should exist but no unit covers it, WORK_UNITS.md has a decomposition gap. If the feature isn't mentioned anywhere in the architecture, ARCHITECTURE.md has a gap.
 
 5. **Third-party library issues trace to ARCHITECTURE.md or the unit SPEC.** If the architecture documents the library but omits a critical configuration requirement, ARCHITECTURE.md is the root cause. If the architecture mentions the requirement but the SPEC doesn't include it, the SPEC is the root cause.
 
@@ -84,7 +84,7 @@ Group related failures into fix batches ordered by dependency. Earlier batches m
 | **Batch 3: Feature-specific** | Individual endpoint, command, or component fixes that are independent of contracts | These are isolated fixes that do not cascade |
 | **Batch 4: Ergonomics** | Dev tooling, docker-compose improvements, documentation, developer experience | Non-blocking but improve the development workflow |
 
-Within each batch, group failures that share a root artifact — if five failures all trace to "CONTRACT_REGISTRY.md is missing Server API response shapes," they are one fix item, not five.
+Within each batch, group failures that share a root artifact — if five failures all trace to "INTERFACES.md is missing Server API response shapes," they are one fix item, not five.
 
 ### Phase 4: Fix Plan Generation
 
@@ -97,7 +97,7 @@ Produce the fix plan with two distinct sections:
 - Why this change prevents the failure(s) it addresses
 
 **Section B: Pipeline Re-entry (informational).** After the human updates artifacts:
-- Which units need their SPEC regenerated (because the architecture or contract registry changed)
+- Which units need their SPEC regenerated (because the architecture or interface contract changed)
 - Which units need re-implementation (because their SPEC will change)
 - What the expected re-entry point is (typically: regenerate SPECs for affected units → re-run per-unit pipeline → re-run system verification)
 
@@ -107,7 +107,7 @@ Produce the fix plan with two distinct sections:
 
 ### Precision over generality
 
-"Fix the contracts" is not actionable. "Add the response shape for `GET /repos/{id}/tree` to CONTRACT_REGISTRY.md § Server API with fields `entries: Array<{path: string, type: "blob" | "tree", sha: string}>` and `truncated: boolean`" is actionable. Every fix instruction must be specific enough to execute without further research.
+"Fix the contracts" is not actionable. "Add the response shape for `GET /repos/{id}/tree` to INTERFACES.md § Server API with fields `entries: Array<{path: string, type: "blob" | "tree", sha: string}>` and `truncated: boolean`" is actionable. Every fix instruction must be specific enough to execute without further research.
 
 ### One root cause per failure
 
@@ -220,7 +220,7 @@ After the artifact updates above are applied:
 
 | Unit | Reason | Affected artifact |
 |------|--------|-------------------|
-| {unit ID} | {why the spec needs regeneration — e.g., "CONTRACT_REGISTRY entry added for this endpoint"} | {which fix item} |
+| {unit ID} | {why the spec needs regeneration — e.g., "INTERFACES entry added for this endpoint"} | {which fix item} |
 
 ### Units Requiring Re-implementation
 
@@ -265,7 +265,7 @@ After the artifact updates above are applied:
 - Fixing code or modifying implementations — triage identifies what to fix in design artifacts, the pipeline handles code changes
 - Running the system or performing verification — SYSTEM_VERIFICATION handles that
 - Updating the artifacts directly — the human applies the triage recommendations
-- Creating new work units — if SPLIT_WORK.md has gaps, triage reports the gap; the human updates the work unit decomposition
+- Creating new work units — if WORK_UNITS.md has gaps, triage reports the gap; the human updates the work unit decomposition
 
 ---
 

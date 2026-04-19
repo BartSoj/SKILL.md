@@ -126,9 +126,9 @@ After running the scenario-based tests from Phase 3, perform these additional ch
 - Prefer real dependencies over mocks when the infrastructure supports it: if the database is available, test against it rather than an in-memory stub; if the server is running, test the CLI against the real server rather than wiremock.
 - If e2e testing is not feasible (system cannot start yet, dependencies are not built, no way to observe the feature externally), document why in the VERIFICATION.md and proceed with unit-level verification only. This is acceptable for foundation and scaffold units.
 
-**Mock fidelity verification.** If the unit's tests use HTTP mocks (wiremock, MSW, nock, test doubles), and a CONTRACT_REGISTRY.md (or equivalent contract document) exists in the project:
+**Mock fidelity verification.** If the unit's tests use HTTP mocks (wiremock, MSW, nock, test doubles), and a INTERFACES.md (or equivalent contract document) exists in the project:
 
-- Check that mock response bodies use wire-format field names and casing from the contract registry, not the implementing language's native convention.
+- Check that mock response bodies use wire-format field names and casing from the interface contract, not the implementing language's native convention.
 - Flag any mock that uses field names or structure inconsistent with the registry — these mocks cause tests to verify against unrealistic data, masking integration bugs.
 - Record mock fidelity findings in the VERIFICATION.md under a dedicated section.
 
@@ -222,19 +222,19 @@ After all scenarios are tested, shut down the application (if this skill started
 
 ## Mock Fidelity
 
-(Include this section when the unit's tests use HTTP mocks and a contract registry exists.)
+(Include this section when the unit's tests use HTTP mocks and a interface contract exists.)
 
-**Contract registry found:** {yes — path / no}
+**INTERFACES.md found:** {yes — path / no}
 **Mocks checked:** {N}
 **Mismatches found:** {N}
 
-| Mock location | Field/Issue | Registry says | Mock says |
+| Mock location | Field/Issue | INTERFACES says | Mock says |
 |---------------|------------|---------------|-----------|
 | `path/to/test:line` | {field name or casing issue} | {wire-format value} | {mock value} |
 
-(If no contract registry exists: "No contract registry found — mock fidelity check skipped.")
+(If no interface contract exists: "No interface contract found — mock fidelity check skipped.")
 (If no mocks exist: "No HTTP mocks found in this unit's tests.")
-(If all mocks match: "All mock response bodies conform to the contract registry.")
+(If all mocks match: "All mock response bodies conform to the interface contract.")
 
 ---
 

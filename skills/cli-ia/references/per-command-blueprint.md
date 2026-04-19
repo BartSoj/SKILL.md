@@ -98,7 +98,7 @@ Repeat the block for every command template in the inventory.
 - **Primary outcome** — one sentence describing the single effect on the world. If the command has no primary outcome, classify it (utility / diagnostic / shell-integration). Commands with two or more legitimate outcomes should be split or justified.
 - **Output on stdout** — describe the structural shape, not literal strings. For machine mode, name the top-level fields. Respect the scriptability contract: stdout is data, never logs.
 - **Output on stderr** — progress, warnings, log lines, error messages. Human-facing. Never carries the command's primary data output.
-- **Side effects** — files written (with paths), network calls made (by endpoint name if a contract registry exists), state mutated. High-level only — not "opens a database transaction and commits after fsync".
+- **Side effects** — files written (with paths), network calls made (by `EP-name` if INTERFACES.md exists), state mutated. High-level only — not "opens a database transaction and commits after fsync".
 - **Failure matrix** — every row from the template, each mapped to an exit code from the taxonomy. Use "N/A — {reason}" for rows that genuinely do not apply to this command. Do not silently drop rows.
 - **Interactive vs non-interactive behavior** — three-mode rule. If the command never prompts, write "No interactive prompts — three-mode rule n/a." and skip the three bullets.
 - **Idempotency** — *safe* for pure reads (no state change ever), *idempotent* for repeatable writes with the same end state, *mutating* for writes that produce new effects each run (e.g., appending), *destructive* for irreversible operations (delete, overwrite).

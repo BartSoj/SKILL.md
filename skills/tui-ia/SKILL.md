@@ -19,7 +19,7 @@ Produce a TUI_IA.md that serves as the single source of truth for a rich termina
 4. **Existing TUI codebase** (auto-discovered) — discover current views, panels, keybindings, and layout from source (e.g., bubbletea `tea.Model` implementations, textual `Screen` classes, ratatui `Widget` trees, blessed `screen.append` calls). Treat as reference only — TUI_IA is the target state, not a mirror of the current state.
 5. **Decision documents** (optional) — architectural decisions that constrain the IA (e.g., "the app is modeless — no vim modes", "status bar always shows branch and sync state", "`q` quits from any view").
 6. **Sibling IAs** (optional) — if `CLI_IA.md`, `WEB_IA.md`, `MOBILE_IA.md`, or `VOICE_IA.md` exist, use-case traceability must be consistent across them. A product that ships both a simple CLI (one-shot commands) and a TUI (interactive full-screen) gets both `CLI_IA.md` and `TUI_IA.md`; they describe disjoint surfaces and must not claim the same use case as primary on both without explicit justification.
-7. **Contract registry** (optional) — if present, per-view data dependencies may reference endpoints by name; wire formats are owned by CONTRACT_REGISTRY.md, not redefined here.
+7. **Interface contract** (optional) — if INTERFACES.md is present, per-view data dependencies may reference endpoints by `EP-name`; wire formats are owned by INTERFACES.md, not redefined here.
 
 The user may override scope (e.g., "only the main TUI, not the admin-mode TUI"). Support that by recording the narrowed scope in the Identity & Context section and excluding out-of-scope views from the inventory.
 
@@ -500,7 +500,7 @@ grouped by the same category headings.
 
 - **Product proposal and use cases:** This document realizes use cases on the TUI surface. Use-case IDs in the traceability matrix match the source use cases document.
 - **Per-unit SPECs:** SPECs for TUI units must reference the TUI_IA entry for the view(s) or shared surface(s) they implement, and use view names, panel roles, keybindings, and mode names from this document verbatim.
-- **CONTRACT_REGISTRY.md** (if present): per-view network calls may reference endpoint names; wire-format shapes are owned by the contract registry, not redefined here.
+- **INTERFACES.md** (if present): per-view network calls may reference endpoint names; wire-format shapes are owned by the interface contract, not redefined here.
 - **CLI_IA.md** (if present): the simple CLI surface is a parallel document. The TUI and CLI describe disjoint surfaces. The Traceability Matrix's cross-channel table calls out any use case claimed as primary on both.
 - **WEB_IA.md / MOBILE_IA.md / VOICE_IA.md** (if present): parallel documents for other channels; the Traceability Matrix's cross-channel table keeps use-case coverage consistent across channels.
 - **Visual / UX execution:** specific colors, box-drawing character choices, spinner frames, and final literal copy are owned downstream of this document, not here.
@@ -542,7 +542,7 @@ grouped by the same category headings.
 - Simple CLI (one-shot commands that read args and print output) — owned by `CLI_IA.md`
 - Web information architecture — owned by `WEB_IA.md`
 - Mobile and voice information architecture — owned by sibling IAs (`MOBILE_IA.md`, `VOICE_IA.md`)
-- Backend and API wire formats — owned by `CONTRACT_REGISTRY.md`
+- Backend and API wire formats — owned by `INTERFACES.md`
 - Database schema, business logic, algorithm design — owned by architecture and unit SPECs
 - Packaging, distribution, signing, release pipeline — owned by DEPLOYMENT docs
 - Persona research and user research — owned by a separate research phase

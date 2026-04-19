@@ -48,7 +48,7 @@ When iterating the inventory in Phase 4 of the workflow, copy the block below pe
 
 **Data dependencies:**
 - {what the view needs to render — e.g., "list of branches, diff of staged/unstaged changes, recent commits"}
-- {if a contract registry exists: endpoint references by name}
+- {if a INTERFACES.md exists: endpoint references by name}
 - {refresh strategy — e.g., "refreshes on file-system event; manual refresh bound to `R`"}
 
 **States:**
@@ -91,7 +91,7 @@ Repeat the block for every view template in the inventory.
 - **Default focus** — which panel or widget receives focus on first entry. Reference focus preservation from the Focus Model — does re-entry restore the last focus or reset to this default?
 - **Primary action** — the single dominant user action. If you cannot name exactly one, the view is probably two views conflated; split it. Chrome views explicitly declare no primary action.
 - **Secondary actions** — keybinding-driven actions that are not the primary. Keep to roles, not literal labels.
-- **Data dependencies** — the data the view renders and what drives its refresh. Name endpoints by reference where a contract registry exists; otherwise describe the data shape by role.
+- **Data dependencies** — the data the view renders and what drives its refresh. Name endpoints by reference where a INTERFACES.md exists; otherwise describe the data shape by role.
 - **States** — every row from the template, each with per-panel content description, active keybinding subset, and next user action. Use "N/A — {reason}" for rows that genuinely do not apply; do not silently drop rows.
 - **Status-bar content on this view** — what is shown *in addition to* (or *in place of*) the global status-bar content when this view is active. If a view suppresses part of the global status bar, note it.
 - **Entry points** — how the user arrives at this view. Enumerate: app launch default (if any), links from other views with the triggering keybinding, command-palette command, deep-link CLI flag.

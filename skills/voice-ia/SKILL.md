@@ -21,7 +21,7 @@ This skill covers **voice-first conversational interfaces** — surfaces where v
 4. **Existing voice codebase** (auto-discovered) — discover current intents, sample utterances, slot types, and dialog-delegation configs from source (e.g., `interactionModel.json` for Alexa, `action.json` or `intents/*` for Google, App Intent declarations for Siri, YAML NLU configs for custom stacks). Treat as reference only — VOICE_IA is the target state, not a mirror of the current state.
 5. **Decision documents** (optional) — architectural decisions that constrain the IA (e.g., "always confirm before any destructive action", "never give medical advice — always hand off", "account linking required for all personal-data intents").
 6. **Sibling IAs** (optional) — if `MOBILE_IA.md`, `WEB_IA.md`, or `CLI_IA.md` exist, use-case traceability must be consistent across all channels. `MOBILE_IA.md` is especially important for App Intent overlap — App Intents / Siri Shortcuts invoked from *inside* a mobile app are owned by `MOBILE_IA.md`; full voice dialog architecture is owned here.
-7. **Contract registry** (optional) — if present, per-intent data dependencies may reference endpoints by name; wire formats are owned by `CONTRACT_REGISTRY.md`, not redefined here.
+7. **Interface contract** (optional) — if `INTERFACES.md` is present, per-intent data dependencies may reference endpoints by `EP-name`; wire formats are owned by `INTERFACES.md`, not redefined here.
 
 The user may override scope (e.g., "only the Alexa skill, not the Google Action"). Support that by recording the narrowed scope in the Identity & Context section and excluding out-of-scope platforms from the inventory.
 
@@ -449,7 +449,7 @@ role, touch controls, companion-push behavior, or "voice-only").
 
 - **Product proposal and use cases:** This document realizes use cases on the voice surface. Use-case IDs in the traceability matrix match the source use cases document.
 - **Per-unit SPECs:** SPECs for voice units must reference the VOICE_IA entry for the intent(s), flow(s), or shared surface(s) they implement, and use intent names, slot names, context keys, and response roles from this document verbatim.
-- **CONTRACT_REGISTRY.md** (if present): per-intent backend data dependencies may reference endpoint names; wire-format shapes are owned by the contract registry, not redefined here.
+- **INTERFACES.md** (if present): per-intent backend data dependencies may reference endpoint names; wire-format shapes are owned by the interface contract, not redefined here.
 - **MOBILE_IA.md** (if present): App Intents / Siri Shortcuts invoked from inside the mobile app are owned there; full voice dialogs invoked via Alexa / Google / Siri standalone are owned here. The traceability matrix cross-references use cases that span both.
 - **WEB_IA.md** (if present): the account-linking landing page and any voice-app marketing pages are owned there; voice-surface IA is owned here.
 - **CLI_IA.md** (if present): parallel IA for terminal surfaces; traceability must be consistent.
@@ -488,7 +488,7 @@ role, touch controls, companion-push behavior, or "voice-only").
 - Implementation details — handler class structure, SDK-specific invocations, NLU model internals, ASR confidence thresholds in code, backend integration code — owned by per-unit `SPEC.md`
 - Final literal spoken copy (exact words, prompts, error messages, personality, humor) — owned by a voice-writing / UX-writing phase
 - Audio aesthetics — specific TTS voice selection, speaking rate, earcon sounds, jingles, stings — owned downstream
-- Backend / API wire formats — owned by `CONTRACT_REGISTRY.md`
+- Backend / API wire formats — owned by `INTERFACES.md`
 - Web information architecture — owned by `WEB_IA.md`
 - Mobile-app information architecture — owned by `MOBILE_IA.md`, including App Intents / Siri Shortcuts invoked from inside the mobile app
 - CLI information architecture — owned by `CLI_IA.md`

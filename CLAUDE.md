@@ -80,7 +80,7 @@ When creating or modifying any skill in this repo, apply these shared principles
 
 Choose the structure based on what the skill does:
 
-- **Rules** work for skills that define properties the output must satisfy (SPEC, SPLIT_WORK). The agent has freedom in how it produces the output, as long as the constraints hold. Rules are declarative: "every function must have a full signature", "no file shared by two units."
+- **Rules** work for skills that define properties the output must satisfy (SPEC, WORK_UNITS). The agent has freedom in how it produces the output, as long as the constraints hold. Rules are declarative: "every function must have a full signature", "no file shared by two units."
 - **Workflows** work for skills that follow a sequential process with distinct stages (PLAN, IMPLEMENT, CODE_REVIEW). Each phase depends on the previous one. Workflows are imperative: "Phase 1: discover scope. Phase 2: launch subagents. Phase 3: aggregate."
 - **Both** can coexist. A skill can have a workflow for the process and rules for properties the output must satisfy regardless of process.
 

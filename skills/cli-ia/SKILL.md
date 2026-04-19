@@ -19,7 +19,7 @@ Produce a CLI_IA.md that serves as the single source of truth for a command-line
 4. **Existing CLI codebase** (auto-discovered) — discover current commands, subcommands, and flags from source (e.g., clap derive macros, cobra command tree, commander definitions, argparse calls). Treat as reference only — CLI_IA is the target state, not a mirror of the current state.
 5. **Decision documents** (optional) — architectural decisions that constrain the IA (e.g., "all destructive commands require confirmation unless `--yes`", "auth via OAuth device flow").
 6. **Web IA document** (optional) — if WEB_IA.md exists, use-case traceability must be consistent across both documents. Every use case surfaces on web, CLI, both, or is explicitly classified as having neither surface.
-7. **Contract registry** (optional) — if present, per-command input/output may reference endpoints by name; wire formats are owned by CONTRACT_REGISTRY.md, not redefined here.
+7. **Interface contract** (optional) — if INTERFACES.md is present, per-command input/output may reference endpoints by `EP-name`; wire formats are owned by INTERFACES.md, not redefined here.
 
 The user may override scope (e.g., "only the end-user CLI, not the internal admin CLI"). Support that by recording the narrowed scope in the Identity & Context section and excluding out-of-scope binaries from the inventory.
 
@@ -448,7 +448,7 @@ Every per-command blueprint's stdout / stderr descriptions respect this contract
 
 - **Product proposal and use cases:** This document realizes use cases on the CLI surface. Use-case IDs in the traceability matrix match the source use cases document.
 - **Per-unit SPECs:** SPECs for CLI units must reference the CLI_IA entry for the command(s) or shared surface(s) they implement, and use command paths, flag names, and exit codes from this document verbatim.
-- **CONTRACT_REGISTRY.md** (if present): per-command network calls may reference endpoint names; wire-format shapes are owned by the contract registry, not redefined here.
+- **INTERFACES.md** (if present): per-command network calls may reference endpoint names; wire-format shapes are owned by the interface contract, not redefined here.
 - **WEB_IA.md** (if present): web surfaces are a parallel document. The use-case traceability must be consistent across both — every use case surfaces on web, CLI, both, or is explicitly classified as having neither surface.
 - **Visual / UX execution:** specific color codes, emoji, box-drawing characters, and literal message strings are owned downstream of this document, not here.
 
@@ -485,7 +485,7 @@ Every per-command blueprint's stdout / stderr descriptions respect this contract
 - Implementation details — parser library, command struct layout, error enum variants, module organization, function signatures — owned by per-unit `SPEC.md`
 - Final UX copy for messages and prompts — owned by a UX-writing phase
 - Visual terminal aesthetics — specific colors, emoji, box-drawing character choices, spinner frames — owned downstream of this document
-- Backend / API wire formats — owned by `CONTRACT_REGISTRY.md`
+- Backend / API wire formats — owned by `INTERFACES.md`
 - Web information architecture — owned by `WEB_IA.md`
 - Native, mobile, GUI, and full TUI information architecture — this skill is CLI-only (terminal-invoked binaries; interactive REPLs included; richer TUIs excluded)
 - Database schema, business logic, algorithm design — owned by architecture and unit SPECs
