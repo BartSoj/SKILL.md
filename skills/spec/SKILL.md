@@ -61,6 +61,19 @@ When the unit implements code on either side of an HTTP boundary (client that se
 - The spec must explicitly state the serialization convention the unit must follow (e.g., "Response struct uses `#[serde(rename_all = "camelCase")]` per interface contract wire convention" or "Route handler returns camelCase JSON per interface contract").
 - When the unit is one side of a client-server pair, the spec must acknowledge the other side exists and reference the interface contract entry that both sides must conform to. This prevents each side from making independent naming choices.
 
+### Design-layer citation rules
+
+The SPEC is the bridge between the design suite (DOMAIN, INTERFACES, BEHAVIOR, ERRORS, QUALITY, SECURITY, DATA) and code. Every design layer the unit touches must be cited by stable ID in section 1 "Design References" — never by prose, never by re-stated content. Citations resolve to the authoritative registry; the implementer does not have to guess what `INV-7` or `METRIC-push-duration-ms` means.
+
+- **Domain invariants (`INV-NN` from DOMAIN.md § 9).** If the unit's behavior preserves, enforces, or potentially threatens any invariant, list the IDs in section 1 and name the mitigation in section 4 wherever a behavioral step crosses the risk.
+- **Domain events (`EVT-name` from DOMAIN § 7 / INTERFACES § 7).** If the unit emits or consumes any event, list it in section 1 with the emission or consumption point and specify the exact trigger in section 4.
+- **State machines and sagas (`SM-entity: {from} → {to}` and `SAGA-name` from BEHAVIOR §§ 1–2).** If the unit implements a state-machine transition or a saga step, cite the exact transition or step ID in section 1 and match the transition's guards / effects / invariants in section 4.
+- **Observability signals (`METRIC-*`, `SLO-*`, `SPAN-*` from QUALITY §§ 3–5).** If the unit emits metrics, participates in an SLO, or owns spans, list the IDs in section 1 and state emission locations (which function, which handler, which saga step) in section 4.
+- **Security threats and mitigations (`THREAT-NN`, `MIT-NN` from SECURITY §§ 5–6).** If the unit is cited as the implementation location for any `MIT-NN`, or faces any `THREAT-NN` relevant to its surface, list both in section 1 and name the control implementation in section 4.
+- **Error codes (`ERR_CODE` from ERRORS.md § 3).** Every error the unit may emit, map, or propagate uses the exact `ERR_CODE` UPPER_SNAKE string from the registry. Do not invent new codes in the SPEC. If a condition the unit must signal has no registered code, surface it as an open question for `/ERRORS.md` to resolve — then re-run this SPEC.
+
+Layers that do not apply to this unit get an explicit `None — {reason}` line in section 1, not silent omission.
+
 ### No-code rule
 
 - The spec must not contain code or pseudocode unless a specific algorithm is non-obvious and cannot be described unambiguously in prose (e.g., a specific hash partitioning scheme, a binary format layout). In that case, minimal pseudocode is permitted with a note explaining why prose was insufficient.
@@ -89,6 +102,18 @@ For each dependency, state:
 - Where it is imported from (file path)
 
 If no dependencies: "None — this is a foundation unit."
+
+### Design References
+
+Cite the stable IDs from the design suite that this unit touches. For layers that do not apply to this unit, state "None — {one-line reason}" — silent omission is forbidden.
+
+- **Domain invariants preserved:** `INV-{NN}` — one-line statement recalled from DOMAIN § 9 for each; how the unit preserves it. (From DOMAIN.md § 9.)
+- **Domain events produced / consumed:** `EVT-{name}` produced at `{function / step}`; `EVT-{name}` consumed by `{handler}`. (From DOMAIN § 7 / INTERFACES § 7.)
+- **State machines / sagas:** `SM-{entity}: {from} → {to}` implemented by this unit; `SAGA-{name}` step `{N}` implemented. (From BEHAVIOR §§ 1–2.)
+- **Observability signals emitted:** `METRIC-{name}` (counter / histogram / gauge) at `{emission point}`; owns span `SPAN-{name}`; participates in `SLO-{name}` as a backend of its SLI. (From QUALITY §§ 3–5.)
+- **Security threats faced / mitigations implemented:** faces `THREAT-{NN}` at `{surface}`; implements `MIT-{NN}` at `{function / middleware / guard}`. (From SECURITY §§ 5–6.)
+- **Use cases realized:** `UC-{NN}`, `UC-{NN}`. (From USE_CASES.md.)
+- **Data aggregates / tables touched:** `{table_name}` (represents `{AggregateName}`); access patterns used: `{query summary → idx_name}`. (From DATA §§ 3–5.)
 
 ---
 
@@ -211,11 +236,13 @@ For each INTERFACES entry this unit implements:
 
 ## 7. Error Catalog
 
-| Error variant/type | Trigger condition | HTTP status (if applicable) | User-facing message format | Source |
-|-------------------|-------------------|----------------------------|---------------------------|--------|
-| ... | ... | ... | ... | this unit / propagated from {unit} |
+| `ERR_CODE` | Language-level error type | Trigger condition | HTTP status | CLI exit | Source |
+|------------|--------------------------|-------------------|-------------|----------|--------|
+| `ERR_CODE_FROM_REGISTRY` | `RustErrorVariant` / `TsExceptionClass` / … | ... | `{3-digit or —}` | `{int or —}` | this unit / propagated from `U{NN}` |
 
-For propagated errors: state whether they are re-wrapped, mapped to a different type, or passed through unchanged.
+Every `ERR_CODE` must exist in ERRORS.md § 3 — do not invent codes in the SPEC. If a condition the unit must signal has no registered code, surface it as an open question in section 10 and re-run `/ERRORS.md` before regenerating this SPEC.
+
+For propagated errors: state whether they are re-wrapped (into which code), mapped to a different code, or passed through unchanged. The mapping, if any, is recorded in ERRORS.md § 4 Wrapping Rules; cite it here.
 
 ---
 
@@ -309,3 +336,13 @@ Before considering a SPEC.md complete, verify:
 - [ ] If the unit touches an HTTP boundary: section 6 includes an HTTP Contract References subsection citing specific interface contract entries
 - [ ] If the unit touches an HTTP boundary: request/response types use exact field names from the interface contract, not independently derived names
 - [ ] If the unit uses HTTP mocks in tests: section 8 states mock fidelity requirement with wire-format field names
+- [ ] Section 1 "Design References" subsection is present with all seven bullets (Domain invariants, Domain events, State machines/sagas, Observability signals, Security threats/mitigations, Use cases, Data aggregates/tables); bullets that do not apply to this unit state `None — {reason}` explicitly
+- [ ] Every `INV-NN` cited in section 1 exists in DOMAIN.md § 9
+- [ ] Every `EVT-name` cited in section 1 exists in DOMAIN.md § 7 or INTERFACES.md § 7
+- [ ] Every `SM-{entity}: {from} → {to}` and `SAGA-{name}` cited in section 1 exists in BEHAVIOR.md §§ 1–2
+- [ ] Every `METRIC-*`, `SLO-*`, and `SPAN-*` cited in section 1 exists in QUALITY.md §§ 3–5
+- [ ] Every `THREAT-NN` and `MIT-NN` cited in section 1 exists in SECURITY.md §§ 5–6
+- [ ] Every `UC-NN` cited in section 1 exists in USE_CASES.md
+- [ ] Every table / access pattern cited in section 1 exists in DATA.md §§ 3–5
+- [ ] Section 7 Error Catalog uses `ERR_CODE` UPPER_SNAKE format for every row; every `ERR_CODE` exists in ERRORS.md § 3 (no invented codes)
+- [ ] Any missing-code need is surfaced in section 10 Open Questions (not silently invented in section 7)

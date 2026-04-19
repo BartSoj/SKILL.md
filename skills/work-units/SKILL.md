@@ -56,15 +56,84 @@ Each work unit MUST satisfy ALL of these:
    contains too much logic to fit in the assembly unit, split the route handlers
    into their own unit first and have the assembly unit import them.
 
+7. **Anchor every unit to the design suite by stable ID.** Anchor-less units
+   drift from design. Specifically:
+   - **UI-implementing units** name the exact IA entry they realize — e.g.,
+     `WEB_IA.md § pages.profile`, `CLI_IA.md § commands.login`,
+     `MOBILE_IA.md § screens.settings`. Use the exact name from the IA, never
+     a paraphrase.
+   - **Units on an HTTP boundary** name the exact `EP-name` from
+     `INTERFACES.md § 6` they implement on one side or consume on the other.
+   - **Stateful / multi-step units** name the exact
+     `SM-{entity}: {from} → {to}` transition or `SAGA-{name} step {N}` from
+     `BEHAVIOR.md §§ 1–2` they implement.
+   - **Data-persistence units** name the `{table_or_collection}` from
+     `DATA.md § 3` they create or modify.
+   - **Foundation / shared-type units** that have no surface declare
+     `Realizes: Foundation — no surface` explicitly rather than leaving the
+     field blank.
+
+8. **Declare the SPEC read-set per unit.** Each unit lists the design artifacts
+   its `/SPEC.md` agent must read end-to-end. This pre-computes the context
+   budget for `/SPEC.md` so the orchestrator does not have to infer it. Typical
+   read sets:
+   - Every unit: `WORK_UNITS`, `DOMAIN`.
+   - HTTP unit: add `INTERFACES`, `ERRORS`.
+   - Persistence unit: add `DATA`.
+   - Stateful / multi-step unit: add `BEHAVIOR`.
+   - UI unit: add the relevant `{SURFACE}_IA`.
+   - Performance-sensitive unit: add `QUALITY`.
+   - Security-sensitive unit: add `SECURITY`.
+   - Tier 1+ units: add the `SPEC.md` of every dependency unit.
+
+   The read set is conservative — a unit that *might* touch a layer lists that
+   layer. A unit that truly does not touch a layer omits it. The total read
+   count per unit should stay at or under eight artifacts; if a single unit
+   needs more than eight, it is over-scoped — re-split.
+
+9. **Track supersession and impact explicitly — bidirectionally.** When a new
+   unit renames, reshapes, replaces, or otherwise changes functionality
+   delivered by an earlier unit, the new unit names the older unit(s) in its
+   `Supersedes / Impacts` field with a one-line reason. When WORK_UNITS.md is
+   regenerated or extended with such a unit, every impacted earlier unit
+   receives a reciprocal `Impacted by: U{NN}` marker appended to its entry —
+   so any agent reading the older unit's SPEC sees immediately that later
+   work has changed the world around it and the spec may be out of date.
+   Silent replacement is forbidden — an orphan change record is a contract bug.
+   Categories (use the most specific that applies):
+   - `Supersedes U{NN}` — the new unit fully replaces the older one; the old
+     unit's `Files` are deleted or rewritten. The old entry is marked
+     `(superseded by U{NN} on {YYYY-MM-DD})` but kept in the document.
+   - `Impacts U{NN}` — the new unit changes types, wire formats, or contracts
+     the older unit uses; the older unit's code still ships but its SPEC may
+     no longer reflect current interfaces.
+   - `Extends U{NN}` — the new unit adds to the older unit's surface without
+     changing existing behavior (new endpoint alongside old, new flag on an
+     existing command). Reciprocal marker is `Extended by: U{NN}`.
+
 ## Output Format
 
 Use the following structure:
 
 ```markdown
+---
+skill: WORK_UNITS.md
+date: {YYYY-MM-DD}
+status: {complete | has_open_questions}
+total_units: {N}
+tiers: {N}
+max_parallel_tier_0: {N}
+critical_path_length: {N}
+units_superseded: {N}
+units_impacted: {N}
+open_questions: {N}
+---
+
 # Work Units
 
-> Auto-generated from architecture documents.
+> Auto-generated from architecture and design documents.
 > Each unit is one independent implementation session: ≤400 LOC, ≤10 tests, ≤6 files, 1 concept.
+> Every unit anchors to the design suite by stable ID (`WEB_IA § pages.*`, `EP-name`, `SM-*`, `SAGA-*`, `{table}`) and declares the SPEC read-set its `/SPEC.md` agent needs.
 
 ## Summary
 
@@ -105,6 +174,23 @@ Units at the same tier have no dependencies on each other and CAN be built in pa
 **Repo:** repo-name (only needed for multi-repo projects)
 
 **Depends on:** none | U01, U02
+
+**Realizes:** The exact IA entry / endpoint / state transition / saga step / table this unit implements. Examples:
+- `WEB_IA.md § pages.profile` (UI unit)
+- `CLI_IA.md § commands.push` (CLI command)
+- `EP-push-create` (INTERFACES.md § 6)
+- `SM-repository: draft → published` (BEHAVIOR.md § 1)
+- `SAGA-checkout step 3` (BEHAVIOR.md § 2)
+- `accounts` table (DATA.md § 3)
+- `Foundation — no surface` (shared types, config scaffolding)
+
+Multiple anchors allowed when the unit spans layers — e.g., a server-side HTTP handler unit realizes both `EP-*` and a `SAGA-*` step.
+
+**SPEC reads:** Comma-separated list of design artifacts the `/SPEC.md` agent must read end-to-end when specifying this unit — e.g., `DOMAIN, INTERFACES, ERRORS, BEHAVIOR, WEB_IA`. At minimum `DOMAIN`. Keep the total at or under eight artifacts; if more are needed, the unit is over-scoped and must be re-split.
+
+**Supersedes / Impacts:** prior unit IDs whose behavior this unit renames, reshapes, or replaces, each with a one-line reason. Use `Supersedes U{NN} — {reason}`, `Impacts U{NN} — {reason}`, or `Extends U{NN} — {reason}` per rule 9. If this unit is purely additive: `None (new capability)`.
+
+**Impacted by:** reciprocal marker — unit IDs added later whose work has changed the interfaces, contracts, or behaviors this unit was specified against. Initial value: `None`. Appended to by later regenerations when this unit appears in a later unit's `Supersedes / Impacts`. Format: `Impacted by: U{NN} ({on YYYY-MM-DD — one-line reason})`.
 
 **Files (creates/edits):**
 - `path/to/file1.ext` — what it contains
@@ -154,3 +240,32 @@ Units at the same tier have no dependencies on each other and CAN be built in pa
 - **Zero-test units are acceptable** for configuration, scaffolding, and CI/CD
   units where correctness is validated by downstream units compiling and passing.
   Mark these with `_Configuration only — validated by downstream units._`
+
+---
+
+## Quality Checklist
+
+Before considering WORK_UNITS.md complete, verify each item:
+
+- [ ] Output has valid YAML frontmatter with all fields (`skill`, `date`, `status`, `total_units`, `tiers`, `max_parallel_tier_0`, `critical_path_length`, `units_superseded`, `units_impacted`, `open_questions`); counts match the body
+- [ ] At least one work unit is defined
+- [ ] Units are numbered sequentially by tier (U01, U02, … with no gaps and no renumbering)
+- [ ] Every unit fits within the constraints: ≤ 400 LOC combined, ≤ 10 tests, ≤ 6 files, exactly 1 concept
+- [ ] No two units modify the same file (zero code overlap)
+- [ ] Every unit has a `Concept` field stating its single capability in one sentence
+- [ ] Every unit has a `Depends on` field listing upstream unit IDs (or `none` for tier 0)
+- [ ] Every unit has a `Realizes` field citing at least one stable-ID anchor — `WEB_IA § pages.*` / `CLI_IA § commands.*` / `MOBILE_IA § screens.*` / `EP-name` / `SM-{entity}: {from} → {to}` / `SAGA-name step N` / `{table_name}` — or the literal `Foundation — no surface`
+- [ ] UI-implementing units name an IA entry by the exact name used in the IA document
+- [ ] HTTP-boundary units name at least one `EP-name` from INTERFACES.md § 6
+- [ ] Stateful / multi-step units name at least one `SM-*` or `SAGA-*` from BEHAVIOR.md §§ 1–2
+- [ ] Persistence units name at least one table / collection from DATA.md § 3
+- [ ] Every unit has a `SPEC reads` field listing the design artifacts its `/SPEC.md` agent must read; `DOMAIN` is always present; total count is ≤ 8 artifacts
+- [ ] Every unit has a `Supersedes / Impacts` field — either listing prior unit IDs with one-line reasons, or the literal `None (new capability)`
+- [ ] Every unit has an `Impacted by` field — initially `None`; appended-to on regeneration when a later unit names this unit in its `Supersedes / Impacts`
+- [ ] When this is a regeneration and a new unit supersedes / impacts / extends an older one, the older unit's `Impacted by` field has been updated with the reciprocal marker (bidirectional linkage — no silent replacement)
+- [ ] Every unit has `Files`, `Tests` (or `_Configuration only — …_`), `Estimated LOC`, and `Interface exposed` fields populated
+- [ ] Dependency graph is a DAG (no cycles); tier N depends only on tiers 0..N-1
+- [ ] Critical path is named explicitly in the Dependency Graph section
+- [ ] No placeholders or vague language (`appropriate`, `relevant`, `as needed`, `etc.`, `various`) anywhere in the document
+- [ ] Superseded units retain their entry in the document with a `(superseded by U{NN} on {YYYY-MM-DD})` marker — never silently deleted
+- [ ] Frontmatter `units_superseded` equals the count of units whose entry carries a `(superseded by …)` marker; `units_impacted` equals the count of units whose `Impacted by` field is non-empty
