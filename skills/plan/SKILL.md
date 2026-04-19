@@ -1,24 +1,24 @@
 ---
 name: PLAN.md
-description: Create an implementation plan from a specification. Use when asked to create a PLAN.md, plan implementation steps, turn a spec into actionable work, or produce a step-by-step build guide for a feature.
+description: Translate a specification into a sequenced implementation plan — ordered steps with inlined context (types, signatures, rules, constants, file paths), codebase citations for reuse and integration points, and per-step plus end-to-end verification. Use when asked to create a PLAN.md, plan implementation steps, turn a spec into actionable work, design a step-by-step build sequence for a feature, or produce a PLAN.md.
 ---
 
 # Task: Create PLAN.md — An Implementation Plan
 
 ## Objective
 
-Given a specification document and any available architecture or decision documents, produce a PLAN.md that an implementing agent can follow start-to-finish without needing to reference any other files. The plan bridges the gap between "what to build" (the spec) and "how to build it" (the code) — it provides the sequence, the context, and the decisions needed to turn a spec into working software.
+Given a specification document and any available architecture or decision documents, produce a PLAN.md that an implementing agent can follow start-to-finish. The plan bridges "what to build" (the spec) and "how to build it" (the code) — it provides the sequence, the context, and the decisions needed to turn a spec into working software.
 
-The plan should be **self-contained**: every type, signature, constraint, and behavioral rule the implementer needs is inlined directly in the relevant step, not referenced by "see the spec." The implementing agent reads only PLAN.md.
+The defining discipline — and the commonest failure — is that **every step inlines the context the implementer needs**: types, signatures, behavioral rules, error variants, constants, and file paths are embedded directly in the step, not referenced by "see the spec" or "see the architecture doc." The implementing agent reads only PLAN.md. The commonest violation is leaving a step as a pointer to another document, or restating the spec at a summary level without concrete file paths and symbol citations — both produce plans that feel complete but force the implementer back into research mode.
 
 ---
 
 ## Inputs
 
-1. **A specification document** — the source of truth for what to build (scope, interfaces, behavior, errors, tests).
-2. **Architecture documents** (if available) — system structure, conventions, technology choices.
-3. **Decision documents** (if available) — recorded architectural decisions with rationale.
-4. **Existing codebase** — discovered through exploration, not assumed.
+1. **Specification document** (required) — the source of truth for what to build (scope, interfaces, behavior, errors, tests). Typically `SPEC.md` for the work unit.
+2. **Architecture documents** (optional) — `ARCHITECTURE.md` and related design artifacts describing system structure, conventions, and technology choices.
+3. **Decision documents** (optional) — recorded architectural decisions with rationale (e.g., ADRs). Used to lock in choices without re-litigating them in the plan.
+4. **Existing codebase** (auto-discovered — via Glob and Grep during Phase 1 Codebase Exploration) — read full method bodies, module structures, and test infrastructure; findings are what the plan's steps inline as concrete citations.
 
 ---
 
@@ -93,6 +93,27 @@ Each step should indicate how to verify it works — what tests to write, what t
 
 The plan should be organized so the implementer can work through it sequentially. The exact structure should fit the problem — a simple feature might need just an overview and a handful of steps, while a complex system might need dependency graphs and integration sections.
 
+### Frontmatter
+
+Every PLAN.md begins with a single YAML frontmatter block at the top of the file. The frontmatter provides the structured, machine-readable header for an otherwise adaptive body:
+
+```yaml
+---
+skill: PLAN.md
+date: {YYYY-MM-DD}
+status: {complete | has_open_questions | blocked}
+unit: {U-NN}
+steps_total: {N}
+files_touched: {N}
+risks_identified: {N}
+open_questions: {N}
+---
+```
+
+**Frontmatter rule:** there is exactly one YAML frontmatter block, at the very top of the file. Never split fields across multiple YAML blocks. The counts (`steps_total`, `files_touched`, `risks_identified`, `open_questions`) must match the body — if the body lists 12 steps, `steps_total: 12`; if it identifies 3 risks, `risks_identified: 3`. Update the counts in a final pass before finalising the document.
+
+### Body
+
 At a minimum, the plan should communicate:
 
 1. **What is being built** — a brief overview derived from the spec, including key constraints and which codebase patterns are being followed
@@ -123,3 +144,5 @@ Before considering the plan complete, verify:
 - [ ] Existing codebase utilities are reused where applicable, not reinvented
 - [ ] Modifications to existing files describe both current state and the change
 - [ ] Open Questions (if any) contain only genuine ambiguities with options and suggestions, not lazy deferrals
+- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `unit`, `steps_total`, `files_touched`, `risks_identified`, `open_questions`)
+- [ ] Frontmatter counts match the body (`steps_total`, `files_touched`, `risks_identified`, `open_questions` all reflect the actual document)

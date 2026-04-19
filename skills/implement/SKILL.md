@@ -1,20 +1,24 @@
 ---
 name: IMPLEMENTATION.md
-description: Implement code from a plan using TDD and subagents. Use when asked to implement a plan, execute implementation steps, or turn a plan into working code.
+description: Execute an implementation plan task-by-task using test-driven development and delegate detail work to subagents. Produce an IMPLEMENTATION.md that records what was built, every deviation from the plan with rationale, and the final test-suite state. Use when asked to implement a plan, execute implementation steps, turn a plan into working code, or produce an IMPLEMENTATION.md.
 ---
 
 # Task: Implement a Plan — TDD with Tasks and Subagents
 
 ## Objective
 
-Given an implementation plan, execute it by breaking it into trackable tasks, implementing each using TDD, and delegating work to subagents to keep the main agent focused on orchestration. After all tasks pass, produce an IMPLEMENTATION.md documenting what was built, decisions made, and anything relevant going forward.
+Produce working code that satisfies an implementation plan, plus an IMPLEMENTATION.md that serves as the post-implementation record of what actually happened — every task completed, every test run, every deviation from the plan, and every issue encountered. The document must let a downstream agent (reviewer, verifier, next work unit) pick up without re-reading the diff: it states the final test-suite state, the interfaces that were stabilised, and the gotchas discovered along the way.
+
+The defining discipline — and the commonest violation — is **tests first, green before next task, deviations from the plan documented with rationale**: every task starts by writing tests that fail for the right reason, every task ends with the full suite green, and every divergence from the plan is captured in the output with a one-sentence why. The commonest failure is moving on to the next task while a test is still red — or silently making a design change that the plan did not call for and leaving the deviation undocumented. Both of those break the chain that downstream review and verification depend on.
 
 ---
 
 ## Inputs
 
-1. **Implementation plan** — the source of truth for what to build and in what order. May be a file, a document, or direct user input.
-2. **Existing codebase** — the current state of the code, which the plan may reference or build upon.
+1. **Implementation plan** (required) — the source of truth for what to build and in what order. Usually a `PLAN.md` in the repo; may also be a document or direct user input. Task ordering, verification criteria, and interface definitions come from here.
+2. **Existing codebase** (required, auto-discovered) — the current state of the repository. Discovered from the working directory. The plan may reference or build upon existing files; read them before writing.
+3. **Work-unit identifier** (optional) — the `U-NN` the plan belongs to, if the project is split into work units. Auto-discovered from the plan's frontmatter or from a parent `WORK_UNITS.md`. Used in the output frontmatter's `unit` field.
+4. **Upstream artifacts** (optional, auto-discovered) — `DOMAIN.md`, `INTERFACES.md`, `BEHAVIOR.md`, or sibling `SPEC.md`s referenced by the plan. Read on demand when the plan cites them; do not pre-load everything.
 
 ---
 
@@ -58,7 +62,24 @@ After everything passes, write an IMPLEMENTATION.md. This is a post-implementati
 
 ## IMPLEMENTATION.md Output Format
 
+The output file starts with a single YAML frontmatter block. There is only ever one frontmatter block — do not split fields across multiple YAML blocks. Every count in the frontmatter (`tasks_total`, `tasks_completed`, `tests_total`, `tests_passing`, `tests_failing`, `deviations_from_plan`, `commits`, `open_questions`) must match what the body reports. `status` is `complete` if every task is completed and `tests_failing == 0`; otherwise it is `has_open_questions` (if the body has unresolved questions but work is otherwise finished) or `blocked` (if a task could not be completed).
+
 ```markdown
+---
+skill: IMPLEMENTATION.md
+date: {YYYY-MM-DD}
+status: {complete | has_open_questions | blocked}
+unit: {U-NN}
+tasks_total: {N}
+tasks_completed: {N}
+tests_total: {N}
+tests_passing: {N}
+tests_failing: {N}
+deviations_from_plan: {N}
+commits: {N}
+open_questions: {N}
+---
+
 # IMPLEMENTATION: {Name}
 
 ## Summary
@@ -132,3 +153,6 @@ Before considering the implementation complete, verify:
 - [ ] IMPLEMENTATION.md is written and accurately reflects what happened
 - [ ] Any deviations from the plan are documented with rationale
 - [ ] No TODO comments or placeholder code left in the implementation
+- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `unit`, `tasks_total`, `tasks_completed`, `tests_total`, `tests_passing`, `tests_failing`, `deviations_from_plan`, `commits`, `open_questions`)
+- [ ] Frontmatter counts match the body (tasks completed, tests passing/failing, deviations listed, commits made, open questions raised)
+- [ ] `status` is `complete` if every task is completed and `tests_failing == 0`; otherwise `has_open_questions` or `blocked`

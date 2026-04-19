@@ -7,16 +7,18 @@ description: Verify a running application by interacting with it as a QA tester.
 
 ## Objective
 
-Produce a VERIFICATION.md that documents the results of testing a running application by actually using it — launching it, interacting with its interface (browser, mobile emulator, or CLI), and recording pass/fail outcomes with evidence for each scenario. This is QA testing: the skill does not read or review source code. It starts the application and operates it as an end user would, then reports what works and what does not.
+Produce a VERIFICATION.md that documents the results of testing a running application by actually using it — launching it, interacting with its interface (browser, mobile emulator, or CLI), and recording pass/fail outcomes for each scenario. This is QA testing through interaction: the skill does not read or review source code. It starts the application and operates it as an end user would, then reports what works and what does not.
+
+The defining discipline — and the commonest violation — is **evidence per scenario**: every pass/fail claim is backed by a concrete artefact (a screenshot at the assertion point, a command output, a response body, a log line). The commonest violation is marking a scenario `pass` because the page loaded or the process did not crash, without ever verifying the specific behaviour the scenario describes. A scenario "User can log in with valid credentials" passes only when the post-login state is observed and captured — not when the login page merely renders.
 
 ---
 
 ## Inputs
 
 1. **Verification scenarios** (required) — what to test. Accepted formats: acceptance criteria, user stories, a specification document, a test plan, or freeform instructions like "verify that login works and the dashboard loads." Each scenario must describe a behavior that can be verified through interaction.
-2. **Application start instructions** (optional) — how to start the app. If not provided, discover from the codebase: package.json scripts (`dev`, `start`, `serve`), Makefile targets, docker-compose.yml services, Cargo.toml, go run targets, or README instructions. If the application is already running, the user provides the URL or entry point and startup is skipped entirely.
-3. **Application type** (optional) — web, mobile, or CLI. If not provided, infer from the start instructions and codebase structure.
-4. **Base URL or entry point** (optional) — where to reach the running application (e.g., `http://localhost:3000`, a CLI command name). If not provided, extract from the start command output or fall back to common defaults (`localhost:3000`, `localhost:8080`, `localhost:5173`).
+2. **Application start instructions** (optional — auto-discovered from the codebase if not provided) — how to start the app. Discovery mechanism: read `package.json` scripts (`dev`, `start`, `serve`), Makefile targets, `docker-compose.yml` services, `Cargo.toml`, `go run` targets, `pyproject.toml`, or README instructions. If the application is already running, the user provides the URL or entry point and startup is skipped entirely.
+3. **Application type** (optional — auto-discovered if not provided) — `web`, `mobile`, `cli`, or `mixed`. Discovery mechanism: infer from the start command (web frameworks → web, `adb`/simulator flags → mobile, binary invocations → cli, combined startup → mixed) and from codebase structure (presence of `public/`, `ios/`, `android/`, `cmd/`).
+4. **Base URL or entry point** (optional — auto-discovered if not provided) — where to reach the running application (e.g., `http://localhost:3000`, a CLI command name). Discovery mechanism: extract from the start command output, then fall back to common defaults (`localhost:3000`, `localhost:8080`, `localhost:5173`).
 
 ---
 
@@ -140,7 +142,30 @@ After all scenarios are tested, shut down the application (if this skill started
 
 ## Output Format
 
+The output uses a **single YAML frontmatter block** at the top of the file — never split fields across multiple blocks. The `verdict` field is derived mechanically from scenario outcomes:
+
+- `pass` — all scenarios passed (`scenarios_failed == 0`)
+- `partial` — at least one scenario failed but not a majority (`0 < scenarios_failed <= scenarios_total / 2`)
+- `fail` — more than half of scenarios failed, OR the application did not start (`scenarios_failed > scenarios_total / 2`, or no scenarios could run)
+
+`scenarios_total` equals the count of scenarios attempted (PASS + FAIL + BLOCKED). `evidence_items_captured` counts the distinct artefacts saved across all scenarios (screenshots, captured outputs, response bodies, log excerpts). `mock_fidelity_findings` counts rows in the Mock Fidelity mismatch table. `unit` is the work-unit ID this verification covers (`U-NN`) or the literal string `system` for composed-system verification.
+
 ```markdown
+---
+skill: VERIFICATION.md
+date: {YYYY-MM-DD}
+status: {complete | has_open_questions | blocked}
+verdict: {pass | partial | fail}
+unit: {U-NN or "system"}
+application_type: {web | mobile | cli | mixed}
+scenarios_total: {N}
+scenarios_passed: {N}
+scenarios_failed: {N}
+evidence_items_captured: {N}
+mock_fidelity_findings: {N}
+open_questions: {N}
+---
+
 # VERIFICATION: {brief description of what was verified}
 
 ## Summary
@@ -310,3 +335,6 @@ Before considering VERIFICATION.md complete, verify:
 - [ ] Mock Fidelity section is present — either with check results, a note that no registry/mocks exist, or confirmation of conformance
 - [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.")
 - [ ] The document is self-contained — readable and actionable without opening any other file
+- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `verdict`, `unit`, `application_type`, `scenarios_total`, `scenarios_passed`, `scenarios_failed`, `evidence_items_captured`, `mock_fidelity_findings`, `open_questions`) in a single block
+- [ ] Frontmatter counts match the body: `scenarios_total` equals PASS + FAIL + BLOCKED counts in § Summary; `scenarios_passed` and `scenarios_failed` match the passing and failing scenario sections; `mock_fidelity_findings` matches the mismatch-table row count
+- [ ] `verdict` field is present and matches scenario outcomes mechanically per the rule in Output Format (`pass` iff `scenarios_failed == 0`; `fail` if `scenarios_failed > scenarios_total / 2` or the app did not start; otherwise `partial`)

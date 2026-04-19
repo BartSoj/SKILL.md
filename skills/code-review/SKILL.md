@@ -9,14 +9,17 @@ description: Review code changes using parallel subagents for security, bugs, qu
 
 Produce a CODE_REVIEW.md that captures every meaningful issue in the current code changes by launching specialized review subagents in parallel, each focused on a distinct quality dimension, then aggregating their findings into a single actionable document. The review covers the explicitly provided scope, or all uncommitted changes plus branch commits not yet in main when no scope is given.
 
+The defining discipline of this skill is that every finding cites a file path, a line number, a severity, and a proposed fix; noise is suppressed by deduplication across subagents and by calibrated severity. The commonest violation is flagging style issues as high severity, or reporting abstract "code smells" with no reproducible pointer — both are symptoms of a review that skipped the discipline. Reject any finding that cannot be pinned to a changed line.
+
 ---
 
 ## Inputs
 
-1. **Code changes** — discovered automatically from git state (see Phase 1), or scoped explicitly by the caller.
-2. **Review scope** (optional) — narrows what changes to review. Can be a specific commit hash, a commit range, specific files or directories, or "staged" for staged changes only. When provided, review only the specified changes. When omitted, auto-discover all uncommitted and branch changes (default behavior).
-3. **Project guidelines** — CLAUDE.md, README.md, or equivalent files in the repository root.
-4. **Existing codebase** — the full repository, available to subagents for context beyond the diff.
+1. **Review scope** (optional) — narrows what changes to review. Can be a specific commit hash, a commit range (`A..B`), specific files or directories, or `"staged"` for staged changes only. When provided, review only the specified changes. When omitted, fall through to auto-discovery (item 2).
+2. **Code changes** (auto-discovered) — derived from git state. When a scope is given, the diff is computed from that scope. When no scope is given, default discovery combines `git diff` (unstaged), `git diff --cached` (staged), and `git diff <main-branch>...HEAD` (branch commits not yet in main). See Phase 1 for details.
+3. **Project guidelines** (auto-discovered) — `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, `.editorconfig`, and any linter configuration files present in the repository root. Passed to every subagent as convention context.
+4. **Contract and error registries** (auto-discovered, optional) — if `add/INTERFACES.md`, `sdd/INTERFACES.md`, `add/ERRORS.md`, or `sdd/ERRORS.md` exist in the repository, read them and pass their content to the Contracts Reviewer for cross-checking. See the Contract-registry cross-check note in Phase 2.
+5. **Existing codebase** (auto-discovered) — the full repository, available to subagents for context beyond the diff.
 
 ---
 
@@ -64,11 +67,13 @@ Read each agent's instructions from the `references/` directory of this skill be
 | Security Auditor | `references/security-auditor.md` | Vulnerabilities, injection, auth, data exposure, secrets, SSRF, dependency risks |
 | Bug Hunter | `references/bug-hunter.md` | Logic errors, race conditions, silent failures, null paths, error swallowing, edge cases |
 | Code Quality Reviewer | `references/code-quality-reviewer.md` | DRY, KISS, YAGNI, SOLID, naming, complexity, project convention compliance |
-| Contracts Reviewer | `references/contracts-reviewer.md` | API design, type safety, breaking changes, invariants, backward compatibility |
+| Contracts Reviewer | `references/contracts-reviewer.md` | API design, type safety, breaking changes, invariants, backward compatibility. When `add/INTERFACES.md` / `sdd/INTERFACES.md` or `add/ERRORS.md` / `sdd/ERRORS.md` exist, also cross-checks wire formats and error codes against those registries. |
 | Test Coverage Reviewer | `references/test-coverage-reviewer.md` | Missing test paths, test quality, regression coverage, test anti-patterns |
 | Historical Context Reviewer | `references/historical-context-reviewer.md` | Git blame hotspots, recurring bugs, past decisions, change frequency patterns |
 
 Every subagent must return its findings using the exact output structure defined in its instructions file. Do not modify or reinterpret the subagent's output format — the aggregation step expects consistent structure.
+
+**Contract-registry cross-check.** When Phase 1 discovered `add/INTERFACES.md` or `sdd/INTERFACES.md`, pass its content to the Contracts Reviewer with an explicit instruction to cross-check every changed wire-format boundary — field names, casing conventions, request/response shapes, idempotency semantics — against the registered contract. When `add/ERRORS.md` or `sdd/ERRORS.md` was also discovered, pass it too and require the Contracts Reviewer to cross-check every error code string emitted in the changes against the registry. Any mismatch — a field renamed without updating `INTERFACES.md`, a new error code not registered in `ERRORS.md`, a casing drift, a broken idempotency guarantee — is categorised as a **contract conformance issue** and counted in the `contract_conformance_issues` frontmatter field. When neither registry exists, skip this cross-check and set `contract_conformance_issues: 0`.
 
 Wait for ALL six subagents to complete before proceeding.
 
@@ -106,11 +111,16 @@ Collect findings from all six subagents and assemble CODE_REVIEW.md:
 ---
 skill: CODE_REVIEW.md
 date: {YYYY-MM-DD}
-status: {complete | has_open_questions}
+status: {complete | has_open_questions | blocked}
 verdict: {pass | concerns | fail}
+scope: {commit_hash | "uncommitted + branch" | "commit range A..B" | "staged"}
+files_reviewed: {N}
 critical_issues: {N}
 high_issues: {N}
-files_reviewed: {N}
+medium_issues: {N}
+low_issues: {N}
+contract_conformance_issues: {N}
+open_questions: {N}
 ---
 
 # CODE_REVIEW: {brief description of what was reviewed}
@@ -247,6 +257,8 @@ Genuinely ambiguous items where multiple valid interpretations exist and the rev
 (If none: "No open questions.")
 ```
 
+**Frontmatter rules.** The output file contains exactly one YAML frontmatter block at the top — never multiple. The `verdict` field follows the issue counts mechanically: `fail` if `critical_issues > 0`; `concerns` if `critical_issues == 0` and `high_issues > 0`; otherwise `pass`. The sum `critical_issues + high_issues + medium_issues + low_issues` must equal the total number of non-positive findings listed in the body. `contract_conformance_issues` counts all findings (at any severity) that the Contracts Reviewer flagged as mismatches against `INTERFACES.md` or `ERRORS.md`; when neither registry exists in the repository, set it to `0`. `scope` reflects the actual reviewed range — use `"uncommitted + branch"` for default auto-discovery, the bare commit hash for a single-commit scope, `"commit range A..B"` for a range, or `"staged"` for staged-only review.
+
 ---
 
 ## Scope
@@ -284,3 +296,6 @@ Before considering CODE_REVIEW.md complete, verify:
 - [ ] The Summary verdict is consistent with the issue counts (FAIL if any Critical, CONCERNS if any High, PASS otherwise)
 - [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.")
 - [ ] The document is self-contained — readable and actionable without opening any other file
+- [ ] Frontmatter counts match the body: `critical_issues + high_issues + medium_issues + low_issues` equals the total number of findings listed
+- [ ] The `verdict` field follows issue counts mechanically (`fail` if any Critical, `concerns` if any High with no Critical, otherwise `pass`)
+- [ ] When `INTERFACES.md` or `ERRORS.md` exist in the project, the review notes whether each changed boundary matches the registered wire format and error codes, and `contract_conformance_issues` is populated accordingly; when neither exists, the field is `0`

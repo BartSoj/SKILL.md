@@ -1,25 +1,27 @@
 ---
 name: SPEC.md
-description: Create a specification for the work unit. Use when asked to create a SPEC.md file for a work unit, write specs or technical documentation for a work unit.
+description: Produce an implementation-complete specification for a single work unit — file manifest, public interface contract with full signatures, ordered behavioral paths, error catalog bound to registered `ERR_CODE`s, test specifications, and design-layer citations (`INV-NN`, `EVT-name`, `SM-*`, `SAGA-*`, `METRIC-*`, `SLO-*`, `THREAT-NN`, `MIT-NN`, `UC-NN`, data aggregates). Use when asked to create a SPEC.md for a work unit, write a unit specification, translate a work unit into an implementable contract, pin the public interface and error catalog for a unit, or produce a SPEC.md.
 ---
 
 # Task: Create SPEC.md for a Work Unit
 
 ## Objective
 
-Given a work unit definition and its surrounding architecture documents, produce a SPEC.md file that is **implementation-complete**: an AI agent reading only this file can produce the implementation without making any architectural, behavioral, or naming decisions of its own. The gap between SPEC.md and code should be purely mechanical — translating unambiguous prose into syntax.
+Produce a SPEC.md that serves as the single source of truth for implementing one work unit: a file manifest, every public symbol with a full signature, every behavioral path as ordered prose, every error as an `ERR_CODE` row bound to ERRORS.md § 3, every test as a setup/action/assertion triple, and every design-layer citation (invariants, events, state machines, sagas, metrics, SLOs, threats, mitigations, use cases, data aggregates) the unit touches. The defining discipline — and the definition of "done" — is that **the gap between SPEC and code is purely mechanical**: an implementing agent reading only this file (and the dependency SPECs it cites) produces the implementation without making any architectural, behavioral, or naming decisions of its own.
+
+The commonest violation is silently picking an answer for a design-level question instead of surfacing it. When the design suite is silent, ambiguous, or contradictory on a question the unit must answer — a wire shape, an error code, a lock granularity, a field name — the question belongs in § 10 Open Questions with options, tradeoffs, and a recommendation. Do not invent. The SPEC must never introduce a design decision that is not already traceable to DOMAIN, INTERFACES, BEHAVIOR, ERRORS, QUALITY, SECURITY, DATA, or USE_CASES.
 
 ---
 
 ## Inputs
 
-You will receive:
+1. **Work unit definition** (required) — the entry from WORK_UNITS.md for this unit. Contains the unit ID, concept, repo, dependencies, file list, test descriptions, estimated LOC, and interface summary.
+2. **Architecture and design suite** (required) — ARCHITECTURE.md plus the design registries whose stable IDs section 1 cites: DOMAIN.md, INTERFACES.md, BEHAVIOR.md, ERRORS.md, QUALITY.md, SECURITY.md, DATA.md, USE_CASES.md. The subset actually loaded is whatever the unit's declared SPEC reads in WORK_UNITS require plus the registries whose IDs the unit touches.
+3. **Decision documents** (optional, auto-discovered) — any `ADR-NN` referenced from the work unit entry or from ARCHITECTURE.md. Discovery mechanism: follow `ADR-NN` citations out of WORK_UNITS and ARCHITECTURE and read each referenced ADR.
+4. **SPEC.md files of dependency units** (required, auto-discovered) — the specs of every unit this unit depends on. Discovery mechanism: walk the dependency list in the WORK_UNITS.md entry for this unit and load each dependency's SPEC.md. These are the source of truth for the exact type names, function signatures, and interface shapes the new unit may import.
+5. **Prior SPEC.md for this unit** (optional, auto-discovered — only if refining) — read fully; preserve every resolved open question, every assigned internal-symbol name, and every `Size hint` already calibrated against earlier drafts. Re-run citations against the current registries — do not assume stale `INV-NN` or `ERR_CODE` are still valid.
 
-1. **A work unit definition** — contains the unit ID, concept, repo, dependencies, file list, test descriptions, estimated LOC, and interface summary.
-2. **Architecture documents** — describe the overall system, file structure, conventions, and technology choices.
-3. **Decision documents** — record architectural decisions and their rationale.
-4. **Security documents** — describe auth model, access control, and trust boundaries.
-5. **SPEC.md files of dependency units** — the specs of units this unit depends on. These are the source of truth for what types, functions, and interfaces are available to import.
+Read-set size: WORK_UNITS + DOMAIN are always read; 3–6 further artifacts depending on declared SPEC reads in WORK_UNITS (dependency SPECs + the design-layer registries this unit actually cites). Read every dependency SPEC end-to-end — truncated reads on dependencies cause silent signature drift.
 
 ---
 
@@ -74,6 +76,12 @@ The SPEC is the bridge between the design suite (DOMAIN, INTERFACES, BEHAVIOR, E
 
 Layers that do not apply to this unit get an explicit `None — {reason}` line in section 1, not silent omission.
 
+### Single YAML frontmatter block
+
+- Exactly one YAML frontmatter block at the top of the SPEC.md output, never two — even when refining an existing SPEC, merge into a single block. The block carries every field enumerated in the Output Format template (`skill`, `date`, `status`, `unit`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`).
+- Every count in the frontmatter matches the body exactly: `files_specified` is the number of file entries in § 9; `tests_specified` is the number of tests in § 8; `errors_specified` is the number of rows in § 7's table; `open_questions` is the number of unresolved questions in § 10 (zero when § 10 reads "All questions resolved."); `estimated_loc_prod` and `estimated_loc_test` are the sums of per-file `Size hint` values for production and test files respectively.
+- `status` is `complete` only when § 10 reads "All questions resolved."; `has_open_questions` when one or more questions remain unresolved; `blocked` only when a missing input (e.g., an unregistered `ERR_CODE`, an ungranted dependency SPEC) prevents authoring the SPEC and the gap is explicit in § 10.
+
 ### No-code rule
 
 - The spec must not contain code or pseudocode unless a specific algorithm is non-obvious and cannot be described unambiguously in prose (e.g., a specific hash partitioning scheme, a binary format layout). In that case, minimal pseudocode is permitted with a note explaining why prose was insufficient.
@@ -85,6 +93,19 @@ Layers that do not apply to this unit get an explicit `None — {reason}` line i
 The SPEC.md file must follow this exact structure. Every section is mandatory. If a section has no content (e.g., no constants for the unit), include the heading with "None." underneath.
 
 ```markdown
+---
+skill: SPEC.md
+date: {YYYY-MM-DD}
+status: {complete | has_open_questions | blocked}
+unit: {U-NN}
+files_specified: {N}
+tests_specified: {N}
+errors_specified: {N}
+estimated_loc_prod: {N}
+estimated_loc_test: {N}
+open_questions: {N}
+---
+
 # SPEC: {Unit ID} — {Unit Name}
 
 ## 1. Identity & Context
@@ -346,3 +367,6 @@ Before considering a SPEC.md complete, verify:
 - [ ] Every table / access pattern cited in section 1 exists in DATA.md §§ 3–5
 - [ ] Section 7 Error Catalog uses `ERR_CODE` UPPER_SNAKE format for every row; every `ERR_CODE` exists in ERRORS.md § 3 (no invented codes)
 - [ ] Any missing-code need is surfaced in section 10 Open Questions (not silently invented in section 7)
+- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `unit`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`)
+- [ ] Frontmatter counts match the body exactly (`files_specified` = rows in § 9, `tests_specified` = tests in § 8, `errors_specified` = rows in § 7, `open_questions` = unresolved items in § 10, `estimated_loc_prod` / `estimated_loc_test` = summed `Size hint` values)
+- [ ] `status` is `complete` if section 10 Open Questions reads "All questions resolved." and `has_open_questions` otherwise (use `blocked` only when a missing input prevents authoring and § 10 makes the gap explicit)
