@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repository Is
 
-A Claude Code plugin (`SKILL.md`) providing skills for spec-driven development (SDD). Each skill produces a structured markdown document that guides an AI agent through a specific phase of the development workflow.
+A Claude Code plugin (`SKILL.md`) providing skills for Agent-Driven Development (ADD). Each skill produces a structured markdown document that guides an AI agent through a specific phase of the development workflow.
 
 ## Repository Structure
 

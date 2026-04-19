@@ -1,9 +1,9 @@
 {
     "name": "SKILL.md",
     "version": "1.0.0",
-    "description": "Set of skills for spec driven development",
+    "description": "Set of skills for Agent-Driven Development",
     "author": {
         "name": "Bartosz Sójka"
     },
-    "keywords": ["claude", "SDD", "skill", "software development"]
+    "keywords": ["claude", "ADD", "skill", "software development", "agent-driven development"]
 }

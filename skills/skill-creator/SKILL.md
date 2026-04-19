@@ -1,6 +1,6 @@
 ---
 name: SKILL_CREATOR.md
-description: Design and create a new skill, or refine an existing one, following SDD conventions. Use when asked to create a skill, design a new skill, write a skill definition, build a SKILL.md, scaffold a skill from requirements, improve an existing skill, or refine a skill's structure.
+description: Design and create a new skill, or refine an existing one, following project conventions. Use when asked to create a skill, design a new skill, write a skill definition, build a SKILL.md, scaffold a skill from requirements, improve an existing skill, or refine a skill's structure.
 ---
 
 # Task: Design and Create a New Skill

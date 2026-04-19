@@ -5,16 +5,16 @@
         "email": "bartsoj@gmail.com"
     },
     "metadata": {
-        "description": "Set of skills for spec driven development",
+        "description": "Set of skills for Agent-Driven Development",
         "version": "1.0.0"
     },
     "plugins": [
         {
             "name": "SKILL.md",
             "source": "./",
-            "description": "Set of skills for spec driven development",
+            "description": "Set of skills for Agent-Driven Development",
             "version": "1.0.0",
-            "keywords": ["claude", "SDD", "skill", "software development"],
+            "keywords": ["claude", "ADD", "skill", "software development", "agent-driven development"],
             "category": "productivity"
         }
     ]

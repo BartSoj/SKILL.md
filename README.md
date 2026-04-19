@@ -13,7 +13,7 @@ claude plugin install SKILL.md@SKILL.md
 
 ## What is Agent-Driven Development?
 
-ADD is SDD pushed to its logical limit. Where SDD assumes a human threads context between steps, ADD assumes **every step is a stateless AI-agent invocation** whose only memory is the files it reads. Consequences:
+ADD treats every step of the software development process as **a stateless AI-agent invocation** whose only memory is the files it reads. Consequences:
 
 - **Files are the only communication channel.** If it isn't in an artifact, it doesn't exist for the next step.
 - **Every skill produces exactly one artifact.** Scope is bounded by what one agent can consume and produce.
@@ -81,11 +81,11 @@ ADD is SDD pushed to its logical limit. Where SDD assumes a human threads contex
 
 | Skill | Produces | What it does |
 |-------|----------|--------------|
-| `/SPEC.md` | `sdd/U<NN>/SPEC.md` | Implementation-complete specification of one work unit, citing domain, interfaces, behavior, errors, data |
-| `/PLAN.md` | `sdd/U<NN>/PLAN.md` | Step-by-step build guide with codebase context |
-| `/IMPLEMENTATION.md` | `sdd/U<NN>/IMPLEMENTATION.md` | Execute the plan via TDD, commit, document deviations |
-| `/CODE_REVIEW.md` | `sdd/U<NN>/CODE_REVIEW.md` | Multi-subagent review — security, bugs, quality, contract conformance, test coverage, historical context |
-| `/VERIFICATION.md` | `sdd/U<NN>/VERIFICATION.md` | QA-test the running feature; capture evidence; verify mock fidelity against INTERFACES |
+| `/SPEC.md` | `add/U<NN>/SPEC.md` | Implementation-complete specification of one work unit, citing domain, interfaces, behavior, errors, data |
+| `/PLAN.md` | `add/U<NN>/PLAN.md` | Step-by-step build guide with codebase context |
+| `/IMPLEMENTATION.md` | `add/U<NN>/IMPLEMENTATION.md` | Execute the plan via TDD, commit, document deviations |
+| `/CODE_REVIEW.md` | `add/U<NN>/CODE_REVIEW.md` | Multi-subagent review — security, bugs, quality, contract conformance, test coverage, historical context |
+| `/VERIFICATION.md` | `add/U<NN>/VERIFICATION.md` | QA-test the running feature; capture evidence; verify mock fidelity against INTERFACES |
 
 ### Phase I — System verification & stabilization
 
@@ -182,10 +182,10 @@ Input: user intent (one paragraph) — or resume from any existing artifact stat
 
 ## File Organization
 
-All artifacts live under `sdd/` at the project root:
+All artifacts live under `add/` at the project root:
 
 ```
-sdd/
+add/
   PROPOSAL.md             USE_CASES.md
   DOMAIN.md               ARCHITECTURE.md
   WEB_IA.md               CLI_IA.md            (surfaces that apply)
@@ -214,7 +214,7 @@ sdd/
 
 | Agent | Description |
 |-------|-------------|
-| `sdd-orchestrator` | Executes the full 9-phase ADD pipeline autonomously — discovery → foundation → surfaces → contracts → behavior & NFR → design review gate → decomposition → per-unit pipeline → system verification. Supports resuming from any phase by inspecting which artifacts already exist. Manages three feedback loops: per-unit (H), design review (F, max 3 cycles), and stabilization (I, max 3 cycles). |
+| `add-orchestrator` | Executes the full 9-phase ADD pipeline autonomously — discovery → foundation → surfaces → contracts → behavior & NFR → design review gate → decomposition → per-unit pipeline → system verification. Supports resuming from any phase by inspecting which artifacts already exist. Manages three feedback loops: per-unit (H), design review (F, max 3 cycles), and stabilization (I, max 3 cycles). |
 
 Agents live in `agents/{agent-name}.md`. They spawn Claude Code instances via CLI to invoke skills, read output files, resolve open questions, and manage retries. Create new orchestration agents with `/ORCHESTRATOR_CREATOR.md`.
 
