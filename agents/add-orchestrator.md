@@ -204,13 +204,21 @@ unset CLAUDECODE && claude -p "/SKILL_NAME.md <instructions on the same line>" -
 - **Set long timeouts.** Use the Bash tool's timeout parameter: 3600000ms (60 min).
 - **Prefer file-based output.** Stdout is a debug channel, not the data channel.
 
-### Continue Previous Session (rarely used)
+### Continue or Resume a Previous Session (rarely used)
 
-Use `-c` only when the output file was partially written and you want the agent to finish it, or when the agent hit an environment issue you fixed and want a retry.
+Use `-c` or `-r` only when the output file was partially written and you want the agent to finish it, or when the agent hit an environment issue you fixed and want a retry. Otherwise prefer a fresh invocation with the failure context inlined — it's simpler and never hijacks anything.
 
 ```bash
 unset CLAUDECODE && claude -c -p "Continuing — the missing package has been installed. Please finish and write add/{path}." --permission-mode bypassPermissions
 ```
+
+**Mechanics you must internalize before using either flag.** Sessions are stored at `~/.claude/projects/<encoded-cwd>/<session-uuid>.jsonl` (cwd with `/` → `-`). Both `-c` and `-r` look only in that per-cwd folder.
+
+- `-c` picks the **most recently modified** `.jsonl` in the cwd's folder. From an empty/missing folder it **silently creates a new session** with no warning. A subdirectory is a different cwd.
+- `-r <uuid>` is also per-cwd. Even with an explicit UUID it returns "No conversation found" if that `.jsonl` is not in the current cwd's folder.
+- **Never run `-c` from a cwd where this orchestrator agent itself lives.** The orchestrator's own session file is in that folder and is being actively written, so `-c` will resume the orchestrator's session and append fabricated turns — polluting the parent log and burning tokens. If you must use `-c`, `cd` to a dedicated empty directory first.
+- To resume a specific child session deliberately, capture its UUID at launch via `--session-id <uuid>` together with `--output-format json`, then later `-r <uuid>` from the same cwd you launched it from.
+- Use `--fork-session` together with `-c`/`-r` to preserve history but mint a new session id, leaving the original `.jsonl` untouched.
 
 ### Parallel Invocation (Python)
 
