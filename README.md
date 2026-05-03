@@ -48,6 +48,16 @@ ADD treats every step of the software development process as **a stateless AI-ag
 | `/TUI_IA.md` | `TUI_IA.md` — terminal UI layout, mode, keybinding matrix |
 | `/VOICE_IA.md` | `VOICE_IA.md` — voice intents, slots, dialog model |
 
+**Optional Tier 2 — per-item deep specs.** The IAs above carry a lightweight blueprint for each item. For pages/screens/views/intents/commands whose composition is complex, novel, or high-stakes, opt into a per-item deep spec. Skip entirely otherwise — most items don't need this.
+
+| Skill | Produces (per item, when warranted) |
+|-------|--------------------------------------|
+| `/PAGE_SPEC.md` | `add/web-pages/<page-id>/PAGE_SPEC.md` — deep web-page composition: layout, action placement, state-specific layouts, motion |
+| `/SCREEN_SPEC.md` | `add/mobile-screens/<screen-id>/SCREEN_SPEC.md` — deep mobile-screen composition: gestures, orientation, platform variations |
+| `/VIEW_SPEC.md` | `add/tui-views/<view-id>/VIEW_SPEC.md` — deep TUI-view composition: panels, modes, keybindings, capability degradation |
+| `/INTENT_SPEC.md` | `add/voice-intents/<intent-id>/INTENT_SPEC.md` — deep voice-intent composition: utterance library, dialog flow, multimodal expansion |
+| `/COMMAND_SPEC.md` | `add/cli-commands/<cmd-id>/COMMAND_SPEC.md` — deep CLI-command composition: output modes, signal handling, capability degradation (rarest of the family) |
+
 ### Phase D — Contracts & Data
 
 | Skill | Produces | What it does |

@@ -2,7 +2,8 @@
 name: add-orchestrator
 description: Autonomously execute the full Agent-Driven Development (ADD) pipeline — from a one-paragraph product idea to a verified working system — by invoking skills, managing feedback loops, and gating on consistency. Use when asked to "run the full workflow", "build this project end to end", "execute the ADD pipeline", "implement from scratch", "run all skills start to finish", "resume the pipeline", or "orchestrate the build".
 model: opus[1m]
-tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch, Skill
+tools: Bash, Read, Edit, Write, CronCreate, CronDelete, CronList, Glob, Grep, KillShell, WebFetch, WebSearch, Skill, Monitor
+permissionMode: bypassPermissions
 ---
 
 # ADD Orchestrator — Autonomous Skill Execution Agent
@@ -32,6 +33,10 @@ Input: user intent (one paragraph) — or resume from any existing artifact stat
  C — Surfaces (parallel per surface, only produced when the project has them)
        /web-ia → WEB_IA.md    /cli-ia → CLI_IA.md    /mobile-ia → MOBILE_IA.md
        /tui-ia → TUI_IA.md    /voice-ia → VOICE_IA.md
+       Optional Tier 2 per item that warrants deep detail (skip otherwise):
+       /page-spec → PAGE_SPEC.md      /screen-spec → SCREEN_SPEC.md
+       /view-spec → VIEW_SPEC.md      /intent-spec → INTENT_SPEC.md
+       /command-spec → COMMAND_SPEC.md
                                    |
                                    v
  D — Contracts & Data              D1 /interfaces    → INTERFACES.md  )
@@ -99,6 +104,12 @@ add/
   MOBILE_IA.md
   TUI_IA.md
   VOICE_IA.md
+  # Phase C — Optional Tier 2 per-item deep specs (only items that warrant deep detail; most don't)
+  web-pages/<page-id>/PAGE_SPEC.md
+  cli-commands/<cmd-id>/COMMAND_SPEC.md
+  mobile-screens/<screen-id>/SCREEN_SPEC.md
+  tui-views/<view-id>/VIEW_SPEC.md
+  voice-intents/<intent-id>/INTENT_SPEC.md
 
   # Phase D — Contracts & Data
   INTERFACES.md          # only if multi-component HTTP or events
@@ -463,6 +474,8 @@ unset CLAUDECODE && claude -p "/CLI_IA.md Read add/PROPOSAL.md, add/USE_CASES.md
 
 If ≥ 2 IAs were produced: for every `UC-NN` in USE_CASES, confirm it appears in at least one IA's Traceability Matrix. Orphan use cases are either legitimately non-UI (CLI-internal, API-only, background job — document with a "no user surface" note) or real gaps. Treat real gaps as open questions or re-run the relevant IA.
 
+**Optional Tier 2 per-item deep specs.** Most items in an IA stay with the lightweight per-item blueprint inside the IA itself. For pages, screens, views, intents, or commands whose composition is complex, novel, or high-stakes — composition would exceed ~30 lines of inline detail in the IA, multiple states with materially different layouts, custom interaction patterns beyond the parent IA's vocabulary, or multiple work units touching the same item — the project may opt into a per-item deep spec via `/page-spec` (web), `/screen-spec` (mobile), `/view-spec` (TUI), `/intent-spec` (voice), or `/command-spec` (CLI; rarest). Each deep spec extends (never duplicates) one item's blueprint with detailed composition, layout, gestures or keybindings, dialog turns or signal handling, capability degradation, etc., and is written to `add/<surface>-items/<item-id>/<NAME>_SPEC.md`. **These are optional — skip entirely unless an item meets the per-item-spec skill's selection criteria.** When present, they are consumed by per-unit SPECs in Phase H0 for units that touch the item.
+
 ---
 
 ## Phase D — Contracts & Data
@@ -662,6 +675,7 @@ For each tier:
    - If the unit persists state: `add/DATA.md`
    - If the unit is stateful or multi-step: `add/BEHAVIOR.md`
    - If the unit is on a UI surface: the relevant `add/{SURFACE}_IA.md`
+   - If the unit touches a surface item that has a Tier 2 per-item spec: also `add/<surface>-items/<item-id>/<NAME>_SPEC.md` (PAGE_SPEC / SCREEN_SPEC / VIEW_SPEC / INTENT_SPEC / COMMAND_SPEC) — only when the item has one; most items don't.
    - If the unit is performance-sensitive: `add/QUALITY.md`
    - If the unit is security-sensitive: `add/SECURITY.md`
    - For Tier 1+: SPECs of dependency units (`add/U{NN}/SPEC.md`)
@@ -769,6 +783,7 @@ For each fix batch in TRIAGE.md, follow this **re-entry depth table**:
 | `DOMAIN.md` (new entity, new invariant, renamed term) | **B1** — re-run domain, then any downstream that cites the changed ID |
 | `ARCHITECTURE.md` (structural change, new component, new flow) | **B2** — re-run architecture, then D/E/F cascade |
 | A surface IA (added/moved page/command/screen) | **C** — regenerate that IA; then G (decomposition) if units changed |
+| A per-item Tier 2 spec (PAGE_SPEC / SCREEN_SPEC / VIEW_SPEC / INTENT_SPEC / COMMAND_SPEC) for one item | **C** — regenerate that per-item spec only (parent IA unchanged); then re-run affected unit SPECs at H0 |
 | `INTERFACES.md` (endpoint change, casing fix, new event) | **D1** — re-run interfaces; then affected unit SPECs at H0 |
 | `DATA.md` (schema change, new index, new migration) | **D2** — re-run data; then affected unit SPECs |
 | `ERRORS.md` (new code, renamed code) | **D3** — re-run errors; then affected unit SPECs |
@@ -886,6 +901,11 @@ After every skill invocation, perform these checks. This is not optional.
 | `MOBILE_IA.md` | `screens_documented > 0`, `platforms` declared, Navigation/Deep-Link/Permissions sections present |
 | `TUI_IA.md` | `views_documented > 0`, `global_keybindings > 0`, Layout/Mode/Keybinding/Focus sections present |
 | `VOICE_IA.md` | `intents_documented > 0`, `confirmation_intents` matches destructive set, Invocation/Slot/Dialog/Privacy sections present |
+| `PAGE_SPEC.md` (optional, per page) | `page_id` set; `template` is a DESIGN.md template name; `sections_specified > 0`; cites WEB_IA page entry by ID; cites DESIGN.md tokens by name only (no hex / px values) |
+| `SCREEN_SPEC.md` (optional, per screen) | `screen_id` set; `platforms` declared; `template` is a DESIGN.md template name; cites MOBILE_IA screen entry by ID; cites DESIGN.md tokens by name only |
+| `VIEW_SPEC.md` (optional, per view) | `view_id` set; `panels_specified > 0`; `capability_tiers_specified > 0`; cites TUI_IA view entry by ID; cites DESIGN.md tokens by name |
+| `INTENT_SPEC.md` (optional, per intent) | `intent_id` set; `utterance_patterns > 0`; `dialog_turns_specified > 0`; cites VOICE_IA intent ID; cites DESIGN.md persona / tone tokens by name |
+| `COMMAND_SPEC.md` (optional, per command) | `command_id` set; `flags_specified > 0`; `output_modes_specified > 0`; cites CLI_IA command ID and exit-code taxonomy IDs |
 | `INTERFACES.md` | `boundaries > 0`, `endpoints > 0`, every endpoint has `EP-name`, error codes cited |
 | `DATA.md` | `tables_or_collections > 0`, `access_patterns > 0`, no orphan indexes (every index in § 4 appears in § 5) |
 | `ERRORS.md` | `error_codes > 0`, every row has all registry columns filled |
@@ -986,6 +1006,9 @@ The full algorithm you follow:
    C1. For each selected surface, invoke the corresponding IA skill.
        Sequential if ≤ 3 surfaces; parallel Python if 4+.
    C2. Cross-channel traceability sweep if ≥ 2 IAs produced.
+   C3. (Optional) Per-item Tier 2 deep specs — only for items that warrant detail per the
+       per-item-spec skill's selection criteria. Invoke /page-spec, /screen-spec, /view-spec,
+       /intent-spec, or /command-spec as needed; skip entirely otherwise. Most items don't qualify.
 
 4. PHASE D — CONTRACTS & DATA
    D1. If multi-component HTTP or events exist: /interfaces → add/INTERFACES.md.
