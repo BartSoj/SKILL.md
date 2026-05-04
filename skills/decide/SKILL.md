@@ -1,13 +1,13 @@
 ---
 name: DECISION.md
-description: Resolve one or more Open Questions from any artifact by gathering evidence (web search, codebase grep, runtime sandbox, prior decisions), reasoning bias-free, and either deciding with an audit trail or handing off to the user via an asynchronous YAML mechanism — writing one `decisions/D-NNN-slug.md` file per invocation. Use when asked to decide on an open question, resolve an open question, make a decision, answer a question for the SPEC, produce a DECISION.md, or produce a decisions/D-NNN file.
+description: Resolve one or more Open Questions from any artifact by gathering evidence (web search, codebase grep, runtime sandbox, prior decisions), reasoning bias-free, and either deciding with an audit trail or handing off to the user via an asynchronous YAML mechanism — writing one `decisions/D-NNN-slug/DECISION.md` file per invocation. Use when asked to decide on an open question, resolve an open question, make a decision, answer a question for the SPEC, produce a DECISION.md, or produce a decisions/D-NNN-slug/DECISION.md.
 ---
 
-# Task: Generate `decisions/D-NNN-slug.md` — Cross-Cutting Open-Question Resolver
+# Task: Generate `decisions/D-NNN-slug/DECISION.md` — Cross-Cutting Open-Question Resolver
 
 ## Objective
 
-Produce one `decisions/D-{NNN}-{slug}.md` file per invocation that resolves one Open Question (or one batch of dependent questions sharing a single decision) carried by an upstream artifact. The skill is **bias-free**: invoked fresh, with no prior conversation context, it reads the question(s) verbatim, gathers evidence using the broadest tool surface in ADD (web search, codebase grep + targeted read, execution sandbox, prior decision files), reasons from the evidence — not from what an upstream agent might have implied — and either lands on a clearly-evidenced option (`status: accepted`) or hands off to the human via the asynchronous user-question mechanism (`status: awaiting-user`). The output is an audit trail: a future reader, looking only at the file, can reconstruct what was asked, what evidence was gathered, why a particular option won (or why the agent declined to decide), and what artifacts must change as a result.
+Produce one `decisions/D-{NNN}-{slug}/DECISION.md` file per invocation that resolves one Open Question (or one batch of dependent questions sharing a single decision) carried by an upstream artifact. The skill is **bias-free**: invoked fresh, with no prior conversation context, it reads the question(s) verbatim, gathers evidence using the broadest tool surface in ADD (web search, codebase grep + targeted read, execution sandbox, prior decision files), reasons from the evidence — not from what an upstream agent might have implied — and either lands on a clearly-evidenced option (`status: accepted`) or hands off to the human via the asynchronous user-question mechanism (`status: awaiting-user`). The output is an audit trail: a future reader, looking only at the file, can reconstruct what was asked, what evidence was gathered, why a particular option won (or why the agent declined to decide), and what artifacts must change as a result.
 
 DECIDE exists because two upstream failure modes proved costly during ADD pipeline testing: silent wrong picks (an upstream skill chose an answer without admitting alternatives existed, blocking only later when the choice failed downstream) and stuck pipelines (the orchestrator could not move forward but had no domain-specific tool to investigate). DECIDE concentrates the investigative tools — web for current docs and standards, codebase grep for existing conventions, runtime sandbox for empirical claims, file-based user-question for genuine product-direction calls — into one purposeful skill. The defining discipline — and the commonest violation — is **no silent picks**: when multiple options are valid and evidence cannot decide, the skill MUST hand off to the user via the YAML mechanism. It MUST NOT pad rationale to disguise a guess as a decision.
 
@@ -17,14 +17,14 @@ DECIDE exists because two upstream failure modes proved costly during ADD pipeli
 
 The orchestrator passes these per invocation. The skill does NOT auto-discover the full design suite; reads are scoped.
 
-1. **Source artifact** (required, primary subject) — the artifact carrying the Open Question(s) being resolved. Typically a path under `add/` (e.g., `add/U03/SPEC.md`, `add/INTERFACES.md`, `add/ARCHITECTURE.md`). The skill quotes the question verbatim from this file.
+1. **Source artifact** (required, primary subject) — the artifact carrying the Open Question(s) being resolved. Typically a path at the project root (e.g., `U03/SPEC.md`, `INTERFACES.md`, `ARCHITECTURE.md`). The skill quotes the question verbatim from this file.
 2. **Cited artifacts** (required, 1–4 typically) — artifacts the question text references or that are needed to understand the question. The orchestrator scopes this. Examples:
-   - For a wire-format question: `add/INTERFACES.md`
-   - For a domain-invariant question: `add/DOMAIN.md`
-   - For a state-machine question: `add/BEHAVIOR.md`
-   - For a unit-scope question: the unit's `add/U<NN>/SPEC.md`
-3. **Prior dependent decisions** (optional, auto-passed when sequenced) — when this invocation depends on a previously-resolved decision, the prior `decisions/D-NNN-slug.md` file is in the input set. The skill cites it under § 4 Prior Decisions.
-4. **`decisions/` directory** (auto-discovered) — existing decision files at `decisions/D-*.md`. Read for two purposes: (a) idempotency check in Phase 1 (has this question already been resolved?), (b) NNN computation in Phase 5 (next available number).
+   - For a wire-format question: `INTERFACES.md`
+   - For a domain-invariant question: `DOMAIN.md`
+   - For a state-machine question: `BEHAVIOR.md`
+   - For a unit-scope question: the unit's `U<NN>/SPEC.md`
+3. **Prior dependent decisions** (optional, auto-passed when sequenced) — when this invocation depends on a previously-resolved decision, the prior `decisions/D-NNN-slug/DECISION.md` file is in the input set. The skill cites it under § 4 Prior Decisions.
+4. **`decisions/` directory** (auto-discovered) — existing decisions at `decisions/D-*/DECISION.md`. Read for two purposes: (a) idempotency check in Phase 1 (has this question already been resolved?), (b) NNN computation in Phase 5 (next available number).
 
 Read-set size: 1 source + 1–4 cited + 0–2 prior decisions + tool reads (web, codebase, runtime) + glob of `decisions/`. Within ADD's read-set budget (1–5 declared reads + tools).
 
@@ -58,13 +58,13 @@ Read the source artifact, especially its Open Questions section. Read the cited 
 - If **one decision resolves all batched questions**: `question_origin` will be a YAML list in frontmatter; § 1 Question quotes every batched question with its source citation.
 - If **the batch is incorrect** (the questions are independent and need separate decisions): do NOT silently split them within this file. Surface in § 9 Open Questions: "Orchestrator batched these questions but they are independent decisions. Recommend orchestrator dispatch them as separate `decide` invocations." Decline to decide; emit `status: awaiting-user` with `user_question` describing the batching error.
 
-**Duplicate check (Rule 7).** Glob `decisions/D-*.md`. For each existing file, read the frontmatter. If any existing file has `question_origin` matching the current input artifact§section (or any element of the current list when batched):
+**Duplicate check (Rule 7).** Glob `decisions/D-*/DECISION.md`. For each existing decision, read the frontmatter. If any existing file has `question_origin` matching the current input artifact§section (or any element of the current list when batched):
 
 | Existing status | Action |
 |-----------------|--------|
-| `accepted` | **Do not write a new file.** Exit with stdout pointer: `duplicate — see decisions/D-NNN-slug.md`. The orchestrator will notice. |
-| `awaiting-user` | **Do not write a new file.** Exit with stdout pointer: `still awaiting user — see decisions/D-NNN-slug.md`. |
-| `proposed` | **Do not write a new file.** Exit with stdout pointer: `decision proposed but not yet applied — see decisions/D-NNN-slug.md`. |
+| `accepted` | **Do not write a new file.** Exit with stdout pointer: `duplicate — see decisions/D-NNN-slug/DECISION.md`. The orchestrator will notice. |
+| `awaiting-user` | **Do not write a new file.** Exit with stdout pointer: `still awaiting user — see decisions/D-NNN-slug/DECISION.md`. |
+| `proposed` | **Do not write a new file.** Exit with stdout pointer: `decision proposed but not yet applied — see decisions/D-NNN-slug/DECISION.md`. |
 | `superseded` | Reason afresh (the supersession indicates a deliberate replacement is in progress). Continue to Phase 2; the new file references the superseded one in § 4 Prior Decisions. |
 | `abandoned` | Reason afresh. Continue to Phase 2; the new file may but need not reference the abandoned one. |
 
@@ -82,7 +82,7 @@ Based on the question, decide which tools to use. Most questions need 1–2 sour
 | "What naming / casing / pattern do we use here?" | **Codebase** (existing conventions) | Prior decisions (if a convention was previously chosen) |
 | "Does library Y actually do Z when called with W?" | **Runtime** (sandbox the call) | Web (library source / GitHub issues for confirmation) |
 | "Should we adopt approach A or B?" (product direction) | **User-question** | Web / codebase as background only |
-| "Is this consistent with our prior architectural choice?" | **Prior decisions** (`decisions/D-*.md`) | Codebase |
+| "Is this consistent with our prior architectural choice?" | **Prior decisions** (`decisions/D-*/DECISION.md`) | Codebase |
 
 The mapping is a guide, not a rule. Use judgment: a question may need web AND codebase AND a prior decision. A question may need only one. Do not consult a tool because it is available — consult it because the question warrants it (Rule 11).
 
@@ -146,18 +146,18 @@ If evidence gathered in Phase 3 is insufficient (the agent reaches Phase 4 witho
 
 **NNN computation.**
 
-1. Glob `decisions/D-*.md`. If the directory does not exist, the next NNN is `001`; create the directory before writing.
-2. For each file matched, parse the leading three-digit number after `D-` (e.g., `decisions/D-007-token-format.md` → 7).
+1. Glob `decisions/D-*/DECISION.md`. If no matches (the `decisions/` directory may not yet exist), the next NNN is `001`.
+2. For each match, parse the leading three-digit number after `D-` in the directory name (e.g., `decisions/D-007-token-format/DECISION.md` → 7).
 3. Take the maximum and add 1. Zero-pad to three digits. (`max=12` → `013`; `max=99` → `100`; `max=999` → `1000` — three-digit pad becomes natural width when overflowing.)
 
 **Slug computation (Rule 9).**
 
 - Short (≤ 5 words), kebab-case, derived from the question's noun phrases.
 - Examples: "What format should tokens use?" → `token-format`; "Should errors wrap or replace?" → `error-wrap-vs-replace`; "Which idempotency key for the push saga?" → `push-saga-idempotency-key`.
-- Uniqueness check: glob `decisions/D-*-{slug}.md` (against all NNN). If a collision exists, append a disambiguator drawn from the question (e.g., `token-format` collides → `token-format-jwt-vs-paseto`; never append a numeric counter).
+- Uniqueness check: glob `decisions/D-*-{slug}/` (against all NNN). If a collision exists, append a disambiguator drawn from the question (e.g., `token-format` collides → `token-format-jwt-vs-paseto`; never append a numeric counter).
 - Only ASCII letters, digits, and hyphens. Lowercase only.
 
-**Write path.** `decisions/D-{NNN}-{slug}.md`. Create the `decisions/` directory if it does not exist.
+**Write path.** `decisions/D-{NNN}-{slug}/DECISION.md`. Create the `decisions/D-{NNN}-{slug}/` directory (and the parent `decisions/` if needed) before writing.
 
 **Frontmatter completeness.**
 - `id` and the filename's NNN agree.
@@ -248,9 +248,9 @@ The `user_response` field starts as `null`. The orchestrator detects the status 
 
 If the same question is invoked twice (orchestrator dispatches a duplicate), the second invocation MUST detect the existing decision file in Phase 1 BEFORE gathering evidence. Behavior by existing status:
 
-- `accepted` → no new file; stdout reports `duplicate — see decisions/D-NNN-slug.md`.
-- `awaiting-user` → no new file; stdout reports `still awaiting user — see decisions/D-NNN-slug.md`.
-- `proposed` → no new file; stdout reports `decision proposed but not yet applied — see decisions/D-NNN-slug.md`.
+- `accepted` → no new file; stdout reports `duplicate — see decisions/D-NNN-slug/DECISION.md`.
+- `awaiting-user` → no new file; stdout reports `still awaiting user — see decisions/D-NNN-slug/DECISION.md`.
+- `proposed` → no new file; stdout reports `decision proposed but not yet applied — see decisions/D-NNN-slug/DECISION.md`.
 - `superseded` or `abandoned` → reason afresh and write a new D-NNN.
 
 This is a soft safety net — the orchestrator should not normally invoke duplicates. Failing to check before investigating wastes the entire run.
@@ -500,7 +500,7 @@ needs its own decision file.
 - Aggressive web research when the question involves external knowledge (Rule 2)
 - Codebase grounding when the question involves existing project conventions (Rule 3)
 - Empirical verification via the runtime sandbox at `decisions/D-{NNN}-{slug}/scratch/` when other sources are inconclusive
-- Producing exactly one `decisions/D-{NNN}-{slug}.md` file per invocation
+- Producing exactly one `decisions/D-{NNN}-{slug}/DECISION.md` file per invocation
 - Computing the next NNN by globbing existing files; choosing a unique slug
 - Handling batched questions (multiple Open Questions sharing a single decision) with `question_origin` as a list and § 1 quoting all batched questions
 - Handing off to the user via `status: awaiting-user` with a self-contained `user_question` brief when the question is user-intent or depends on an unresolved sub-question (Rules 4, 5, 8)
@@ -514,7 +514,7 @@ needs its own decision file.
 - Resolving Open Questions that have unambiguous answers — those should be resolved silently by the upstream skill, not surfaced. (DECIDE handles only genuine ambiguity that escaped the upstream skill.)
 - Pre-loading the full design suite — reads are scoped to what the orchestrator passes plus what tools warrant
 - Pausing during execution to ask the user — user-question is asynchronous (file-based). The skill never blocks on human interaction during a run (ADD P9)
-- Writing code, tests, or production implementation — owned by `/IMPLEMENTATION.md` (H3) and other implementation-style skills
+- Writing code, tests, or production implementation — owned by `/IMPLEMENTATION.md` (H5) and other implementation-style skills
 - Architectural design beyond what the question's options entail — owned by `/ARCHITECTURE.md` for foundational structure
 - Updating prior decision files (other than the new file linking to a superseded prior via § 7 Implications) — the orchestrator applies supersession edits
 
@@ -529,7 +529,7 @@ Before considering the decision file complete, verify:
 - [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.", "various", "and so on", "many", "some", "best practice", "industry-standard")
 - [ ] § 9 Open Questions is present (empty with "All questions resolved within this decision." or with genuine decision-level sub-questions only)
 - [ ] Output is self-contained — readable and actionable without opening the source artifact, the cited artifacts, or the prior decisions
-- [ ] Filename matches `decisions/D-{NNN}-{slug}.md` pattern with sequential NNN (computed from `max(existing) + 1`, zero-padded to 3 digits) and a unique slug
+- [ ] Filename matches `decisions/D-{NNN}-{slug}/DECISION.md` pattern with sequential NNN (computed from `max(existing) + 1`, zero-padded to 3 digits) and a unique slug
 - [ ] `id` field equals `D-{NNN}` from the filename
 - [ ] `status` is one of the lifecycle values (`proposed | accepted | superseded | awaiting-user | abandoned`) — NOT the standard artifact-state enum
 - [ ] `awaiting_user: true` if and only if `status: awaiting-user`
@@ -552,5 +552,5 @@ Before considering the decision file complete, verify:
 - [ ] Slug is unique within `decisions/`; on collision, a disambiguator from the question is appended (not a numeric counter)
 - [ ] Idempotency check ran at Phase 1 before any evidence-gathering — no investigation was wasted on a duplicate question (Rule 7)
 - [ ] If runtime sandbox was used, the scratch directory `decisions/D-{NNN}-{slug}/scratch/` exists and is not empty; § 4 Runtime cites files inside it
-- [ ] Citations use stable IDs (`D-NNN`, `UC-NN`, `INV-NN`, `EP-NN`, `EV-NN`, `ERR_*`, `T-NN`, `M-NN`, `U-NN`) and `ARTIFACT§section` references — never line numbers or uncited quoted prose
+- [ ] Citations use stable IDs (`D-NNN`, `UC-NN`, `SCN-NN`, `INV-NN`, `EP-name`, `EVT-name`, `ERR_CODE`, `SM-entity-state`, `SAGA-name`, `THREAT-NN`, `MIT-NN`, `METRIC-name`, `SLO-name`, `CFG_NAME`, `U-NN`) and `ARTIFACT§section` references — never line numbers or uncited quoted prose
 - [ ] `open_questions` frontmatter count equals the unresolved checkbox count in § 9
