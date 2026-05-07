@@ -7,9 +7,9 @@ description: Design the system architecture — architectural style, component i
 
 ## Objective
 
-Produce an ARCHITECTURE.md that serves as the structural blueprint for the system: what components exist, what each is responsible for, how they connect, what technology each uses, which foundational decisions were made and why, and what shape the deployment takes. The document fixes the architectural *style*, inventories every component with its responsibility and deployable form, draws the topology, walks every cross-cutting scenario as a cross-component flow, inlines an `ADR-NN` for every decision with real alternatives, sketches deployment at a 1–2-page level, names system-level quality-attribute headlines, and calls out evolution seams and out-of-scope structural choices. An agent reading this document alone can place any downstream concern (a new endpoint, a new schema, a new surface, a new component) into the correct structural slot without guessing — and can explain *why* the shape is what it is.
+Produce an ARCHITECTURE.md that serves as the structural blueprint for the system: what components exist, what each is responsible for, how they connect, what technology each uses, which foundational decisions were made and why, and what shape the deployment takes. The document fixes the architectural *style*, inventories every component with its responsibility and deployable form, draws the topology, walks every cross-cutting scenario as a cross-component flow, indexes every architectural decision (`D-NNN`) — each one resolved as a side-output `decisions/D-{NNN}-{slug}/DECISION.md` file — sketches deployment at a 1–2-page level, names system-level quality-attribute headlines, calls out evolution seams and out-of-scope structural choices, and points readers at the sister artifacts that own surface-level detail. An agent reading this document alone can place any downstream concern (a new endpoint, a new schema, a new surface, a new component) into the correct structural slot without guessing — and can explain *why* the shape is what it is.
 
-ARCHITECTURE.md is produce-once and read-many: every IA skill, `/interfaces`, `/data`, `/behavior`, `/quality`, `/security`, `/operations`, `/WORK_UNITS.md`, and most `/spec` agents read it. Treat every component name, `ADR-NN` ID, and flow as a permanent commitment. The defining rule — and the commonest violation — is **structure, not surface**: this document owns *what components exist and why*, never the wire formats, schemas, UI, state machines, error taxonomy, or detailed ops that sibling artifacts own.
+ARCHITECTURE.md is produce-once and read-many: every IA skill, `/interfaces`, `/data`, `/behavior`, `/quality`, `/security`, `/operations`, `/WORK_UNITS.md`, and most `/spec` agents read it. Treat every component name, `D-NNN` ID, and flow as a permanent commitment. The defining rule — and the commonest violation — is **structure, not surface**: this document owns *what components exist and why*, allows targeted concrete mentions where they make a structural responsibility specific, but never enumerates the wire formats, schemas, UI inventories, state machines, error taxonomies, or detailed ops that sibling artifacts own.
 
 ---
 
@@ -53,6 +53,10 @@ Derive candidates from three sources:
 
 For each component write the full block: name (short, capitalised, singular — `API Server`, `Sync Worker`, `Web Client`, `CLI`), responsibility (one paragraph, in domain terms, cross-referencing DOMAIN.md bounded context names), technology stack (language, framework, major libraries — *choices*, not configuration; versions only where materially load-bearing), deployable unit (process / container / lambda / static-bundle / single-binary), owning bounded contexts (from DOMAIN.md § 2), dependencies (other components this component calls or reads from; cross-link to § 4 flows), and non-goals (what this component deliberately does not do — "the API Server does not compute pack deltas; that work lives in Sync Worker").
 
+**Optional structural depth (per component, used only when the structure is itself architecturally meaningful):** include a **component file map** (directory tree) when the internal organisation is part of the design — TypeScript monorepos, Rust workspaces, multi-package frontends; include a **module responsibility table** mapping each notable file or directory in the tree to its one- or two-sentence responsibility when file-level routing of behaviour is part of the design; include an **internal architecture diagram** (Mermaid) when the component has non-trivial internals — concurrency models, internal pipelines, recovery flows; include a **runtime dependencies table** (capability / package / version / scope / notes) when dependency choices are themselves structurally meaningful (rich frontends, heavily-pluggable hosts). Skip any of these for components whose internals are uniform and low-information.
+
+**Multi-repo systems.** When the system spans multiple source repositories with distinct toolchains or deployment pipelines, precede § 2 with a § 1.5 Repository Inventory — a one-row-per-repo table (`repository / language / purpose / distribution`).
+
 Component count lands in frontmatter `components:`. Three to fifteen components is typical for v1; more than fifteen is a sign the modular-monolith / hybrid style is under-consolidated, or that responsibilities have been sliced too finely.
 
 ### Phase 3: Component Topology
@@ -69,29 +73,31 @@ The scenario-to-flow mapping is **exhaustive**: every `SCN-NN` from USE_CASES.md
 
 Cross-component flow count lands in frontmatter `cross_component_flows:`.
 
-### Phase 5: ADR Harvest & Documentation
+### Phase 5: Architectural Decision Harvest
 
-Enumerate every architectural decision with *real* alternatives — alternatives a reasonable reader might have picked. Do not invent ADRs for forced decisions ("we chose to have a database to store state" has no alternative in context). Typical ADR-worthy decisions: the style choice from § 1 (always; the forcing functions go into Context), language / runtime choice per component, monolith-vs-split per bounded-context, sync-vs-async per integration, in-process vs out-of-process per responsibility split, storage engine per data domain, transport / protocol family (gRPC vs REST vs GraphQL vs WebSocket — at the *family* level; specific wire details live in INTERFACES.md), orchestration vs choreography for multi-step workflows, single-region vs multi-region, self-hosted vs managed, vendor choice where it is load-bearing.
+Enumerate every architectural decision with *real* alternatives — alternatives a reasonable reader might have picked. Do not invent decisions for forced choices ("we chose to have a database to store state" has no alternative in context). Typical decisions: the style choice from § 1 (always; the forcing functions go into Context), language / runtime choice per component, monolith-vs-split per bounded-context, sync-vs-async per integration, in-process vs out-of-process per responsibility split, storage engine per data domain, transport / protocol family (gRPC vs REST vs GraphQL vs WebSocket — at the *family* level; specific wire details live in INTERFACES.md), orchestration vs choreography for multi-step workflows, single-region vs multi-region, self-hosted vs managed, vendor choice where it is load-bearing.
 
-Write each ADR with the fields: ID (`ADR-NN`, stable, append-only — if refining, new ADRs take the next unused number), title (imperative — "Use a modular monolith for v1", "Run sync work in a dedicated worker process"), status (`proposed` / `accepted` / `deprecated` / `superseded-by-ADR-MM`), context (what forces are at play — cite PROPOSAL principles by quoted phrase, cite DOMAIN bounded contexts by name, cite `SCN-NN` where a scenario is the forcing function), decision (the single sentence answering what we are doing), consequences (what becomes easier and what becomes harder — both required; an ADR with only "easier" is a sales pitch, not an ADR), alternatives considered (at least two, each with a one-line reason rejected).
+Each decision is written as a side-output `decisions/D-{NNN}-{slug}/DECISION.md` file conforming to the DECISION.md schema (id, kind: adr, title, status, context, decision, consequences with both Easier and Harder, alternatives considered with at least two rejected with reasons). Glob the existing `decisions/D-*` to compute the next unused NNN; slug is short kebab-case derived from the title. Stable IDs (`D-NNN`) are append-only — never renumber, never reuse. Deprecated decisions retain their ID with `status: superseded-by-D-MM` and the back-reference.
 
-Keep individual ADRs under ~30 lines. ADRs inlined here are the foundational ones — decisions that shape downstream artifacts and that every later reader should absorb in situ. When the ADR count exceeds ~30, extract overflow to `decisions/NNN-title.md` sibling files, keep a one-line index entry under § 5, and carry the `decisions/` path in the entry. ADRs live in this document unless size forces extraction.
+§ 5 of ARCHITECTURE.md itself is the index — one bullet per decision in the form `D-NNN — {title} — see decisions/D-{NNN}-{slug}/DECISION.md`, sorted by NNN. Deprecated entries remain on the index with their status noted on the line.
 
-ADR count lands in frontmatter `adrs_inline:` (counting only those fully written in this file — overflow extracted to `decisions/` is *not* counted). Deprecated ADRs are counted.
+Decision count lands in frontmatter `decisions_indexed:`. Deprecated decisions are counted.
 
 ### Phase 6: Deployment Shape Sketch
 
-Draft § 6 at the level of a 1–2 page sketch for orientation, not operational detail. Cover: cloud provider or self-hosted posture, compute kinds per component (VM, container runtime, managed service, serverless function), region strategy (single-region / multi-region / edge), environment topology (dev, staging, prod — one paragraph each), and traffic ingress path at a structural level ("ingress hits a TLS-terminating load balancer in front of the API Server cluster; CLI clients bypass the load balancer and connect directly"). Name the specific provider or runtime only where it is load-bearing and settled; leave it as "managed Postgres-compatible RDBMS" when the specific vendor is ops's call.
+Draft § 6 at the level of a 1–2 page sketch for orientation, not operational detail. Open § 6 with a **deployment summary table** — one row per component, columns `Component / Runs on / Key property`. Then cover, in per-environment paragraphs (dev, staging, prod — one paragraph each): cloud provider or self-hosted posture, compute kinds per component (VM, container runtime, managed service, serverless function), region strategy (single-region / multi-region / edge), and traffic ingress path at a structural level ("ingress hits a TLS-terminating load balancer in front of the API Server cluster; CLI clients bypass the load balancer and connect directly"). Name the specific provider or runtime only where it is load-bearing and settled; leave it as "managed Postgres-compatible RDBMS" when the specific vendor is ops's call.
 
 Detail belongs to `/operations` — runbooks, config vars, CI/CD pipelines, backup / restore, on-call, capacity planning. Reference them forward as "detail in OPERATIONS.md" whenever the draft creeps into that territory.
 
-### Phase 7: Quality Attribute Headlines, Evolution, Out-of-Scope Structure
+### Phase 7: Quality Attribute Headlines, Evolution, Out-of-Scope Structure, Sister Artifacts
 
 **§ 7 Quality Attribute Headlines.** Four to seven headline non-functional targets at the *system* level: availability (e.g., `99.9% monthly`), latency for hot paths (e.g., `p99 push accept < 2 s`), scale envelope (RPS, concurrent users, storage volume), data durability (e.g., `no single-disk loss results in data loss`), compliance bands if any (e.g., `SOC 2 Type II alignment; no PCI scope`). Headlines only; per-flow latency budgets, per-metric SLOs, and observability signal catalogues live in QUALITY.md.
 
-**§ 8 Evolution & Extension Points.** Three to six bullets answering: where does this architecture bend if scale 10× grows? Where are the plug-in seams (new backend, new surface, new region)? What component split is *anticipated but deferred* (mark the trigger condition — "split Sync Worker into Pack Worker and GC Worker when GC CPU exceeds 30% of worker capacity")? Evolution seams that are already `ADR-NN`'d need not be restated; cite the ADR.
+**§ 8 Evolution & Extension Points.** Three to six bullets answering: where does this architecture bend if scale 10× grows? Where are the plug-in seams (new backend, new surface, new region)? What component split is *anticipated but deferred* (mark the trigger condition — "split Sync Worker into Pack Worker and GC Worker when GC CPU exceeds 30% of worker capacity")? Evolution seams that are already `D-NNN`'d need not be restated; cite the decision. This section is *architectural-evolution* — where the structure bends — distinct from feature roadmap (which lives in `roadmap/`).
 
 **§ 9 Out-of-Scope Structure.** Two to six bullets naming architectural choices we explicitly did *not* make, each with a one-line reason. Examples: "No micro-frontends — single-team, SPA-per-surface is simpler for v1"; "No multi-region — scale envelope does not justify cross-region complexity; revisit when traffic crosses 10⁴ RPS in a single region"; "No separate analytics pipeline — event stream from § 4 is sufficient for first-year product analytics". This section is the structural analogue of PROPOSAL § 4 Non-Goals and prevents downstream agents from helpfully sketching components we chose not to build.
+
+**§ 10 Sister Artifacts.** Anchor pointers to the documents that own surface-level detail — two or three lines each, naming the document and what surface it owns. Cover at least: `DATA.md` (database schema), `INTERFACES.md` (HTTP wire formats and event schemas), the per-surface IAs (`WEB_IA.md`, `CLI_IA.md`, `MOBILE_IA.md`, `TUI_IA.md`, `VOICE_IA.md` — only those that exist for this product), `BEHAVIOR.md` (state machines and sagas), `ERRORS.md` (error taxonomy), `SECURITY.md` (threat model), `QUALITY.md` (full SLOs and observability), `OPERATIONS.md` (runbooks, config catalogue, CI/CD), and `decisions/D-NNN-{slug}/DECISION.md` (per-decision ADRs). This section enables a reader who arrived at ARCHITECTURE.md by accident to find the right document quickly.
 
 ### Phase 8: Validation & Finalization
 
@@ -100,14 +106,11 @@ Verify the document holds together before finalising:
 - Every component in § 2 appears as a node in § 3's topology diagram, and its name matches exactly.
 - Every component in § 2 appears in at least one cross-component flow in § 4. A component mentioned nowhere in § 4 is either unused (delete) or under-documented (add the missing flow, usually a startup / warm-up / health-check flow — but then write it as a structural supporting flow per Phase 4's note).
 - Every `SCN-NN` from USE_CASES.md § 3 has at least one flow in § 4. Run a checklist across § 3 of USE_CASES before finalising.
-- Every architectural choice with plausible alternatives has an `ADR-NN` in § 5. The style choice from § 1 always has an ADR — if you wrote only one ADR and it is the style decision, consider what other choices you normalised away without examination.
-- No wire-format leakage: grep the document for `JSON`, `protobuf`, `HTTP header`, `URL path`, `endpoint path`, `GraphQL query`, `WebSocket frame`, `serialise`, `deserialise`. Any hit outside an ADR's alternatives-considered rationale is a leak — rephrase as "wire format lives in INTERFACES.md" or delete.
-- No schema leakage: grep for `table`, `column`, `index`, `primary key`, `foreign key`, `migration`, `DDL`. Component responsibilities can name "persists X to a relational store" without naming a table.
-- No UI leakage: grep for `page`, `button`, `click`, `tap`, `tab`, `modal`, `navigate`, `screen` (as a UI noun). Client-side components are named (`Web Client`, `CLI`); their UI inventory is owned by the per-surface IA skills.
-- No state-machine leakage: grep for `state machine`, `transition`, `SM-`. Component responsibilities may cite behavioural constraints by name but not sketch state diagrams; BEHAVIOR.md owns that.
-- No error-taxonomy leakage: grep for `ERR_`, `error code`, specific error category enums. Failure modes in § 4 describe structural behaviour in prose ("the Sync Worker dead-letters the job and emits a retry-exhausted signal"), not error-code tables; ERRORS.md owns the taxonomy.
-- Frontmatter counts match the body: `components`, `adrs_inline`, `cross_component_flows`, `open_questions`.
-- `status` is `complete` if § 10 Open Questions is "All questions resolved." and `has_open_questions` otherwise.
+- Every architectural choice with plausible alternatives has a `D-NNN` index entry in § 5 and a corresponding `decisions/D-{NNN}-{slug}/DECISION.md` file written. The style choice from § 1 always has a decision — if you wrote only one decision and it is the style decision, consider what other choices you normalised away without examination.
+- No systematic surface enumeration. Scan for full or partial inventories that duplicate sister-artifact contents — a table of every error code, every endpoint, every column, every UI page, every state machine, every config var. Targeted concrete mentions used to specify a structural responsibility ("`addCollaborator` accepts exactly one of `userId` / `username` / `email`") are allowed; full enumerations are not. When you spot an enumeration, replace it with a structural sentence and a pointer ("see ERRORS.md for the full taxonomy").
+- § 10 Sister Artifacts is present and lists every sibling artifact that owns surface detail this document references.
+- Frontmatter counts match the body: `components`, `decisions_indexed`, `cross_component_flows`, `open_questions`.
+- `status` is `complete` if § 11 Open Questions is "All questions resolved." and `has_open_questions` otherwise.
 
 Update frontmatter counts. Do not finalise the document with any section missing its heading.
 
@@ -119,7 +122,7 @@ These rules govern the output document. Violations are detected by the quality c
 
 ### 1. Structure, not surface
 
-ARCHITECTURE describes *what components exist and why*. Forbidden content: wire formats (→ INTERFACES.md), schema (→ DATA.md), UI pages / commands / screens / intents (→ `/web-ia`, `/cli-ia`, `/mobile-ia`, `/tui-ia`, `/voice-ia`), state machines and sagas (→ BEHAVIOR.md), detailed observability and SLOs (→ QUALITY.md), threat model and auth flows (→ SECURITY.md), detailed ops / config / runbooks (→ OPERATIONS.md), error taxonomy (→ ERRORS.md). This is the commonest violation. When a paragraph starts listing JSON fields, state transitions, or database columns, stop and replace it with "detail in {target file}".
+ARCHITECTURE describes *what components exist and why*. Targeted surface mentions are allowed when they make a structural responsibility specific (naming one error code, one endpoint, one URL pattern, one config flag). Systematic surface enumerations are forbidden — they belong to sister artifacts: wire formats (→ INTERFACES.md), schema (→ DATA.md), UI pages / commands / screens / intents (→ `/web-ia`, `/cli-ia`, `/mobile-ia`, `/tui-ia`, `/voice-ia`), state machines and sagas (→ BEHAVIOR.md), detailed observability and SLOs (→ QUALITY.md), threat model and auth flows (→ SECURITY.md), detailed ops / config / runbooks (→ OPERATIONS.md), error taxonomy (→ ERRORS.md). When a paragraph starts becoming a *table* of any sister-artifact concept, stop and replace it with the structural sentence plus a pointer.
 
 ### 2. Every component in at least one flow
 
@@ -133,13 +136,13 @@ Every `SCN-NN` from USE_CASES.md § 3 must have at least one flow in § 4. The f
 
 Every architectural choice where alternatives could reasonably have been picked has an `ADR-NN` in § 5. If there was no real alternative (the forcing function is overwhelming), no ADR is needed. The style decision from § 1 always has an ADR because every style has alternatives. A document with zero ADRs is almost certainly under-documented.
 
-### 5. Stable ADR IDs, forever
+### 5. Stable decision IDs, forever; decisions live in `decisions/`
 
-`ADR-NN` IDs are assigned once and never renumbered, never reused, never deleted-without-trace. Deprecated ADRs stay in § 5 marked `deprecated — superseded-by-ADR-MM`; superseded ADRs stay in § 5 with the back-reference. When refining an existing ARCHITECTURE.md, new ADRs take the next unused number — never reuse a retired number.
+`D-NNN` IDs are assigned once and never renumbered, never reused, never deleted-without-trace. Each architectural decision lives at `decisions/D-{NNN}-{slug}/DECISION.md` (written as a side output of this skill, conforming to the DECISION.md schema). § 5 of ARCHITECTURE.md is the index — one bullet per decision pointing at the file. Deprecated decisions retain their ID with `status: superseded-by-D-MM`, remain on the index with the back-reference. When refining an existing ARCHITECTURE.md, new decisions take the next unused number across the existing `decisions/` directory — never reuse a retired number.
 
 ### 6. Cite by stable ID
 
-Citations use stable IDs, never line numbers or quoted prose: `UC-NN` for use cases, `SCN-NN` for cross-cutting scenarios, `INV-NN` for invariants, `EVT-name` for domain events, `ADR-NN` for architecture decisions. Bounded context names and component names are cited verbatim (match the casing in DOMAIN.md § 2 and ARCHITECTURE.md § 2). A citation that quotes prose rather than the ID is a regeneration hazard — quotes drift; IDs do not.
+Citations use stable IDs, never line numbers or quoted prose: `UC-NN` for use cases, `SCN-NN` for cross-cutting scenarios, `INV-NN` for invariants, `EVT-name` for domain events, `D-NNN` for architectural decisions. Bounded context names and component names are cited verbatim (match the casing in DOMAIN.md § 2 and ARCHITECTURE.md § 2). A citation that quotes prose rather than the ID is a regeneration hazard — quotes drift; IDs do not.
 
 ### 7. Component name stability
 
@@ -165,21 +168,44 @@ The `architecture_style:` frontmatter field is one of: `monolith`, `modular-mono
 
 § 3 must contain a Mermaid `flowchart LR` or `flowchart TD`. Every component in § 2 appears in the diagram; every node in the diagram except externals / stores is a component in § 2. External systems and data stores are present on the diagram distinctly styled. Edges are labelled with interaction kind (`sync call`, `async event`, `pull`, `replicates`, `delegates to`) — never wire formats or specific method names.
 
-### 13. Failure modes are structural, not coded
+### 13. Failure modes are structural
 
-Every cross-component flow in § 4 has a **Failure modes** field listing what happens if each critical participant fails mid-flow. Failure descriptions are structural ("the request is abandoned and the client sees a retryable failure") not taxonomic ("the server returns `ERR_SYNC_FAILED`"). The error taxonomy is ERRORS.md's domain; this document names behaviours, not codes.
+Every cross-component flow in § 4 has a **Failure modes** field listing what happens if each critical participant fails mid-flow. Failure descriptions are structural ("the request is abandoned and the client sees a retryable failure"). Naming a single specific error code where it disambiguates the structural behaviour is allowed; tabulating the full set of error codes is not — that taxonomy lives in ERRORS.md.
 
 ### 14. No feature-list masquerading as components
 
 A component is a deployable unit with a coherent responsibility. A "feature" is not a component. If § 2 contains entries that are really features of a single server ("Notification Component", "Auth Component", "Billing Component" — all running inside one process), consolidate them into the actual component and record their sub-responsibilities inline. Structural components get independent deployable identity; features do not.
 
-### 15. Single YAML frontmatter block
+### 15. Single YAML frontmatter block (required)
 
-One YAML frontmatter block at the top containing common fields (`skill`, `date`, `status`) and architecture-specific fields (`architecture_style`, `components`, `adrs_inline`, `cross_component_flows`, `open_questions`). Never emit a second YAML block. Counts match the body — `components` equals the number of component entries in § 2; `adrs_inline` equals the number of ADRs with full bodies in § 5 (excluding those extracted to `decisions/`); `cross_component_flows` equals the number of flow entries in § 4.
+One YAML frontmatter block at the top is required. Common fields: `skill`, `date`, `status`. Architecture-specific fields: `architecture_style`, `components`, `decisions_indexed`, `cross_component_flows`, `open_questions`. Never emit a second YAML block. Counts match the body — `components` equals the number of component entries in § 2; `decisions_indexed` equals the number of one-line entries in § 5 (each pointing to a `decisions/D-{NNN}-{slug}/DECISION.md` file written alongside this artifact); `cross_component_flows` equals the number of flow entries in § 4.
 
 ### 16. Precision over vagueness
 
-No "appropriate", "relevant", "as needed", "etc.", "various", "and so on", "many", "some", "a few". Use exact component names, exact interaction kinds, exact ADR IDs, exact `SCN-NN` / `UC-NN` references. Unresolvable ambiguity (an unsettled monolith-vs-split question, an undecided vendor) surfaces in § 10 Open Questions.
+No "appropriate", "relevant", "as needed", "etc.", "various", "and so on", "many", "some", "a few". Use exact component names, exact interaction kinds, exact `D-NNN` IDs, exact `SCN-NN` / `UC-NN` references. Unresolvable ambiguity (an unsettled monolith-vs-split question, an undecided vendor) surfaces in § 11 Open Questions.
+
+### 17. Repository inventory for multi-repo systems
+
+When the system spans multiple source repositories with distinct toolchains or deployment pipelines, include a § 1.5 Repository Inventory table — one row per repository, columns `repository / language / purpose / distribution`. The table appears between § 1 Overview and § 2 Components. Single-repo systems omit this section.
+
+### 18. Optional component depth
+
+A component entry in § 2 may include any of these optional fields when they convey architecture, not just configuration:
+
+- **Component file map** — directory tree of the component, used when the internal organisation is itself part of the design (TypeScript monorepos, Rust workspaces, multi-package frontends).
+- **Module responsibility table** — Markdown table mapping each notable file or directory in the tree to its one- or two-sentence responsibility, used when file-level routing of behaviour is part of the design.
+- **Internal architecture diagram** — Mermaid diagram of the component's internals, used when the component has non-trivial concurrency, internal pipelines, or recovery flows.
+- **Runtime dependencies table** — Markdown table (capability / package / version / scope / notes) used when dependency choices are themselves structurally meaningful (rich frontends, heavily-pluggable hosts).
+
+Skip any of these for components whose internals are uniform and low-information.
+
+### 19. Sister Artifacts section
+
+§ 10 Sister Artifacts is required. It contains short pointers — two or three lines each — to the documents that own surface-level detail: `DATA.md`, `INTERFACES.md`, the per-surface IAs that exist for this product, `BEHAVIOR.md`, `ERRORS.md`, `SECURITY.md`, `QUALITY.md`, `OPERATIONS.md`, and `decisions/D-NNN-{slug}/DECISION.md`. Each pointer names the document and the surface it owns.
+
+### 20. Deployment summary table
+
+§ 6 opens with a one-row-per-component deployment summary table — columns `Component / Runs on / Key property`. Per-environment paragraph sketches (dev / staging / prod) follow the table.
 
 ---
 
@@ -192,18 +218,19 @@ date: {YYYY-MM-DD}
 status: {complete | has_open_questions | blocked}
 architecture_style: {monolith | modular-monolith | microservices | client-server | event-driven | hybrid | other}
 components: {N}
-adrs_inline: {N}
+decisions_indexed: {N}
 cross_component_flows: {N}
 open_questions: {N}
 ---
 
 # ARCHITECTURE — {ProductName}
 
-> Structural blueprint. Components, topology, flows, and foundational ADRs.
-> Downstream artifacts cite components by name and ADRs by `ADR-NN`. Wire
+> Structural blueprint. Components, topology, flows, and decision index.
+> Downstream artifacts cite components by name and decisions by `D-NNN`. Wire
 > formats live in INTERFACES.md; schema in DATA.md; UI in the per-surface IAs;
 > state machines in BEHAVIOR.md; ops detail in OPERATIONS.md; error codes in
-> ERRORS.md; threats in SECURITY.md; SLOs in QUALITY.md.
+> ERRORS.md; threats in SECURITY.md; SLOs in QUALITY.md; per-decision rationale
+> in `decisions/D-NNN-{slug}/DECISION.md`.
 
 ## § 1. Overview & Architectural Style
 
@@ -215,13 +242,25 @@ open_questions: {N}
 
 ---
 
+## § 1.5. Repository Inventory
+
+(Include only when the system spans multiple source repositories with distinct
+ toolchains or deployment pipelines. Single-repo systems omit this section.)
+
+| Repository | Language | Purpose | Distribution |
+|---|---|---|---|
+| `{repo-name}` | {language} | {purpose} | {how it ships} |
+
+---
+
 ## § 2. Components
 
 ### `{ComponentName}`
 
 - **Responsibility:** {one paragraph in domain terms, cross-referencing
   DOMAIN.md bounded context names. What this component owns, what work it
-  performs, what guarantees it makes. No wire formats, no schema, no UI.}
+  performs, what guarantees it makes. Targeted concrete mentions allowed;
+  no systematic enumerations of wire formats, schema, UI, or error codes.}
 - **Technology stack:** {language, framework, major libraries — choices, not
   configuration; versions only where materially load-bearing}
 - **Deployable unit:** {process | container | lambda | static-bundle | single-binary | embedded library}
@@ -231,7 +270,46 @@ open_questions: {N}
 - **Non-goals:** {what this component deliberately does not do — one bullet
   per non-goal, short}
 
-(Repeat for every component. Three to fifteen typical for v1.)
+#### Component file map (optional)
+
+(Include when the component's internal organisation is part of the design.)
+
+```
+{component-root}/
+├── {dir}/
+│   ├── {file}
+│   └── ...
+└── ...
+```
+
+#### Module responsibilities (optional)
+
+(Include when file-level routing of behaviour is part of the design. One row
+ per notable file or directory; one or two sentences each.)
+
+| File / Directory | Responsibility |
+|---|---|
+| `{path}` | {responsibility} |
+
+#### Internal architecture (optional)
+
+(Include when the component has non-trivial internals — concurrency,
+ internal pipelines, recovery flows.)
+
+```mermaid
+flowchart TD
+    {internal nodes and edges}
+```
+
+#### Runtime dependencies (optional)
+
+(Include when dependency choices are themselves structurally meaningful.)
+
+| Capability | Package | Version | Scope | Notes |
+|---|---|---|---|---|
+| {capability} | `{package}` | `{version}` | {scope} | {notes} |
+
+(Repeat per component. Three to fifteen typical for v1.)
 
 ---
 
@@ -290,32 +368,24 @@ sequenceDiagram
 
 ---
 
-## § 5. Architecture Decision Records (inline)
+## § 5. Architectural Decision Index
 
-### `ADR-{NN}`: {imperative title — "Use a modular monolith for v1"}
+(One bullet per decision, sorted by NNN. Each decision is a side-output
+ `decisions/D-{NNN}-{slug}/DECISION.md` file conforming to the DECISION.md
+ schema. Deprecated decisions remain on the index with their status noted.)
 
-- **Status:** {proposed | accepted | deprecated | superseded-by-ADR-{MM}}
-- **Context:** {what forces are at play — cite PROPOSAL principles by phrase,
-  DOMAIN bounded contexts by name, `SCN-NN` where a scenario is the forcing
-  function. 2–6 sentences.}
-- **Decision:** {single sentence — what we are doing}
-- **Consequences:**
-  - **Easier:** {at least one thing that becomes easier}
-  - **Harder:** {at least one thing that becomes harder}
-- **Alternatives considered:**
-  - **`{Alternative1}`** — {one-line reason rejected}
-  - **`{Alternative2}`** — {one-line reason rejected}
-  (At least two alternatives per ADR.)
-
-(Repeat for every decision with real alternatives. Deprecated ADRs remain
- with the `deprecated — superseded-by-ADR-{MM}` status; never delete or
- renumber. When the inlined ADR count exceeds ~30, extract overflow to
- `decisions/NNN-title.md` and replace the inline block with a one-line index
- entry: `ADR-{NN} — {title} — see decisions/{NNN-title}.md`.)
+- `D-{NNN}` — {imperative title — "Use a modular monolith for v1"} — see `decisions/D-{NNN}-{slug}/DECISION.md`
+- `D-{NNN}` — {title} — `superseded-by-D-{MM}` — see `decisions/D-{NNN}-{slug}/DECISION.md`
 
 ---
 
 ## § 6. Deployment Shape (high-level)
+
+### Summary
+
+| Component | Runs on | Key property |
+|---|---|---|
+| `{ComponentName}` | {runtime — VM, Cloud Run, Lambda, edge, static} | {load-bearing property — stateful local SSD, stateless auto-scale, edge-cached, etc.} |
 
 ### Dev
 
@@ -370,7 +440,23 @@ sequenceDiagram
 
 ---
 
-## § 10. Open Questions
+## § 10. Sister Artifacts
+
+- **DATA.md** — {what surface it owns, e.g., "PostgreSQL schema, indexes, access patterns, migration list"}
+- **INTERFACES.md** — {e.g., "HTTP wire formats, request/response shapes, event schemas"}
+- **WEB_IA.md** — {e.g., "URL strategy, page inventory, navigation, per-page blueprints"}
+- **CLI_IA.md** — {e.g., "command grammar, exit codes, per-command blueprints"}
+- **{other surface IAs that exist}** — {what each owns}
+- **BEHAVIOR.md** — {e.g., "state machines per aggregate, sagas, idempotency keys"}
+- **ERRORS.md** — {e.g., "error code registry, classification tree, response shape"}
+- **SECURITY.md** — {e.g., "threat model, mitigations, auth/authz flows"}
+- **QUALITY.md** — {e.g., "logging standard, metrics catalogue, SLOs, performance budgets"}
+- **OPERATIONS.md** — {e.g., "deployment topology, CI/CD, config catalogue, runbook"}
+- **`decisions/D-NNN-{slug}/DECISION.md`** — per-decision rationale, indexed in § 5
+
+---
+
+## § 11. Open Questions
 
 - [ ] {Question — e.g., "Should the Sync Worker share the API Server's
       relational store or own a dedicated one? Isolation is cleaner; shared
@@ -390,15 +476,17 @@ sequenceDiagram
 ### In scope
 
 - Architectural style decision and rationale
-- Component inventory — name, responsibility, technology stack, deployable unit, owning bounded contexts, dependencies, non-goals
+- Repository inventory (when multi-repo)
+- Component inventory — name, responsibility, technology stack, deployable unit, owning bounded contexts, dependencies, non-goals; plus optional component file map, module responsibility table, internal architecture diagram, and runtime dependencies table when structurally meaningful
 - Component topology (Mermaid flowchart) with interaction-kind labelled edges and external systems / stores distinctly styled
-- Cross-component flows — one per `SCN-NN` from USE_CASES.md § 3 at minimum, each with sequence diagram, numbered prose steps, structural failure modes, and related use cases
-- Inlined Architecture Decision Records (`ADR-NN`) for every decision with real alternatives, including context, decision, consequences (easier + harder), and at least two alternatives considered with rejection reasons
-- High-level deployment sketch per environment (dev, staging, prod)
+- Cross-component flows — one per `SCN-NN` from USE_CASES.md § 3 at minimum, each with Mermaid sequence diagram, numbered prose steps, structural failure modes, and related use cases
+- Architectural Decision Index (`D-NNN` index pointing to side-output `decisions/D-NNN-{slug}/DECISION.md` files) for every decision with real alternatives
+- High-level deployment summary table plus per-environment paragraph sketches (dev, staging, prod)
 - Headline quality-attribute targets (availability, latency, scale envelope, data durability, compliance)
 - Evolution seams and anticipated splits with trigger conditions
 - Explicit out-of-scope structural choices with reasons
-- Genuinely ambiguous decisions surfaced in § 10 Open Questions
+- Sister Artifacts pointers to documents owning surface-level detail
+- Genuinely ambiguous decisions surfaced in § 11 Open Questions
 
 ### Out of scope
 
@@ -418,31 +506,28 @@ sequenceDiagram
 
 ## Quality Checklist
 
-- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `architecture_style`, `components`, `adrs_inline`, `cross_component_flows`, `open_questions`)
+- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `architecture_style`, `components`, `decisions_indexed`, `cross_component_flows`, `open_questions`)
 - [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.", "various", "and so on", "many", "some")
-- [ ] § 10 Open Questions is present (empty with "All questions resolved." or with genuine ambiguities only)
+- [ ] § 11 Open Questions is present (empty with "All questions resolved." or with genuine ambiguities only)
 - [ ] Output is self-contained — readable and actionable without opening other files
-- [ ] All ten sections § 1 through § 10 are present with their exact headings
+- [ ] All required sections (§ 1, § 2, § 3, § 4, § 5, § 6, § 7, § 8, § 9, § 10, § 11) are present with their exact headings; § 1.5 Repository Inventory is present iff the system is multi-repo
 - [ ] `architecture_style` frontmatter value is one of: `monolith`, `modular-monolith`, `microservices`, `client-server`, `event-driven`, `hybrid`, `other`
 - [ ] § 1 names the architectural style using the same label as frontmatter, names the dominant forcing function, and names at least one style rejected with a reason
-- [ ] Every component in § 2 has all fields: responsibility, technology stack, deployable unit, owning bounded contexts, dependencies, non-goals
+- [ ] Every component in § 2 has all required fields: responsibility, technology stack, deployable unit, owning bounded contexts, dependencies, non-goals; optional fields (component file map, module responsibility table, internal architecture diagram, runtime dependencies table) are included only when structurally meaningful
 - [ ] § 3 contains a Mermaid `flowchart LR` or `flowchart TD` with every component from § 2 appearing as a node using the exact § 2 name
 - [ ] Every edge in the § 3 diagram is labelled with an interaction kind (`sync call`, `async event`, `pull`, `replicates`, `delegates to`) — never a wire format or method name
 - [ ] Every component in § 2 participates in at least one flow in § 4
 - [ ] Every `SCN-NN` from USE_CASES.md § 3 has at least one flow in § 4 with the `SCN-NN` cited in **Related use cases**
-- [ ] Every flow in § 4 has trigger, participating components, sequence diagram, numbered steps (3–12), failure modes, and related use cases
-- [ ] Every ADR in § 5 has ID, title, status, context, decision, consequences (at least one `Easier` and one `Harder`), and at least two alternatives considered with rejection reasons
-- [ ] ADR IDs are append-only — no renumbering; deprecated ADRs retain their ID with `deprecated — superseded-by-ADR-{MM}`
-- [ ] The style choice from § 1 has a corresponding `ADR-NN` in § 5
-- [ ] § 6 covers dev, staging, and prod in at most one paragraph each — no runbook-level detail
+- [ ] Every flow in § 4 has trigger, participating components, Mermaid sequence diagram, numbered steps (3–12), failure modes, and related use cases
+- [ ] Every entry in § 5 has the form `D-NNN — {title} — see decisions/D-NNN-{slug}/DECISION.md`, and a corresponding `decisions/D-NNN-{slug}/DECISION.md` file has been written conforming to the DECISION.md schema (id, kind: adr, title, status, context, decision, consequences with Easier and Harder, alternatives considered with at least two rejected with reasons)
+- [ ] `D-NNN` IDs are append-only — no renumbering; deprecated decisions retain their ID with `status: superseded-by-D-MM` and remain on the index
+- [ ] The style choice from § 1 has a corresponding `D-NNN` entry in § 5
+- [ ] § 6 opens with the deployment summary table and then covers dev, staging, and prod in at most one paragraph each — no runbook-level detail
 - [ ] § 7 lists 4–7 headline quality-attribute targets with numbers, not qualitative adjectives
-- [ ] § 8 names evolution seams or anticipated splits with trigger conditions; § 9 names ≥ 2 explicit out-of-scope structural choices with reasons
-- [ ] No wire-format content appears anywhere outside ADR alternatives-considered rationale (grep-check: `JSON`, `protobuf`, `HTTP header`, `URL path`, `GraphQL query`, `WebSocket frame`, `serialise`, `deserialise`)
-- [ ] No schema content appears (grep-check: `table`, `column`, `index`, `primary key`, `foreign key`, `migration`, `DDL`)
-- [ ] No UI vocabulary appears (grep-check: `page`, `button`, `click`, `tap`, `tab`, `modal`, `navigate`, `screen` as UI noun)
-- [ ] No state-machine content appears (grep-check: `state machine`, `transition`, `SM-`)
-- [ ] No error-taxonomy content appears (grep-check: `ERR_`, `error code`, specific error category enums)
-- [ ] Citations use stable IDs (`UC-NN`, `SCN-NN`, `INV-NN`, `EVT-name`, `ADR-NN`), never line numbers or quoted prose
-- [ ] Frontmatter counts (`components`, `adrs_inline`, `cross_component_flows`, `open_questions`) match the body exactly
-- [ ] `status` is `complete` if § 10 is "All questions resolved." and `has_open_questions` otherwise
-- [ ] Document length is within the 1000–2000 line target (hard cap 2000); ADR overflow beyond ~30 entries extracted to `decisions/NNN-title.md` with one-line index entries retained inline
+- [ ] § 8 names evolution seams or anticipated splits with trigger conditions (architectural-evolution, distinct from feature roadmap); § 9 names ≥ 2 explicit out-of-scope structural choices with reasons
+- [ ] § 10 Sister Artifacts is present and points at every sibling artifact whose surface this document references
+- [ ] No systematic surface enumeration anywhere — no full or partial inventories of error codes, endpoints, columns, UI pages, state machines, or config vars; targeted concrete mentions used to specify a structural responsibility are allowed
+- [ ] Citations use stable IDs (`UC-NN`, `SCN-NN`, `INV-NN`, `EVT-name`, `D-NNN`), never line numbers or quoted prose
+- [ ] Frontmatter counts (`components`, `decisions_indexed`, `cross_component_flows`, `open_questions`) match the body exactly
+- [ ] `status` is `complete` if § 11 is "All questions resolved." and `has_open_questions` otherwise
+- [ ] Document length is within the 1000–2000 line target (hard cap 2000)

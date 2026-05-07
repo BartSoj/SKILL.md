@@ -36,7 +36,7 @@ What to explore:
 - **Similar features as implementation templates** — how comparable things were built elsewhere, as a reference for consistency
 - **Integration points** — where new code connects to existing code, what interfaces and contracts it must satisfy
 
-Launch multiple exploration subagents in parallel when the scope spans different areas. Give each a focused search area (one explores existing patterns, another explores integration points, another explores test infrastructure). Subagent findings become the inlined context in the plan's steps.
+Launch multiple exploration subagents in parallel when the scope spans different areas. Give each a focused search area (one explores existing patterns, another explores integration points, another explores test infrastructure). Subagent findings become the inlined context in the plan's steps. Record the commit hash exploration was verified against and include it in the plan overview so a reader can re-verify the citations.
 
 ### Phase 2: Approach Analysis
 
@@ -87,6 +87,10 @@ Each step should embed everything the implementer needs: types, signatures, beha
 
 Each step should indicate how to verify it works — what tests to write, what to check, what command to run. The plan should also include an end-to-end verification approach for after all steps are complete.
 
+### Inline rationale
+
+When a step makes a non-obvious choice — a specific ordering, a particular library option, an unusual pattern, a workaround — include a brief "Why X:" rationale inline. Steps without rationale are likely to be undone during downstream edits.
+
 ---
 
 ## Output Structure
@@ -117,15 +121,16 @@ open_questions: {N}
 At a minimum, the plan should communicate:
 
 1. **What is being built** — a brief overview derived from the spec, including key constraints and which codebase patterns are being followed
-2. **Implementation order** — how steps relate to each other, what can be parallelized, what the critical path is
-3. **Implementation steps** — the body of the plan. Each step should cover:
+2. **Conventions / Patterns to follow** — a sub-section in the overview naming cross-step rules (naming, error mapping, casing, file-not-found handling, library conventions) once, so individual steps can reference them rather than restating
+3. **Implementation order** — how steps relate to each other, what can be parallelized, what the critical path is. When the unit has natural commit boundaries — a multi-commit refactor where each commit must leave the system working — group steps into phases and document the gate criteria between phases
+4. **Implementation steps** — the body of the plan. Each step should cover:
    - Which file is being created or modified
    - What other steps it depends on
    - All the context needed to implement it (types, signatures, behavioral rules — inlined, not referenced)
    - What specifically to build, in enough detail that the implementer doesn't need to make design decisions
    - How to verify the step is correct
-4. **Integration and wiring** — the final steps that connect everything: route mounting, module registration, config changes, dependency installation
-5. **End-to-end verification** — how to confirm the whole thing works once all steps are done
+5. **Integration and wiring** — the final steps that connect everything: route mounting, module registration, config changes, dependency installation
+6. **End-to-end verification** — how to confirm the whole thing works once all steps are done
 
 If genuinely ambiguous decisions remain that couldn't be resolved from the spec, architecture docs, and codebase exploration, place them in an **Open Questions** section with options, tradeoffs, and a suggestion. This should be rare — most decisions should be resolvable from the available inputs.
 

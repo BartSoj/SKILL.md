@@ -39,6 +39,7 @@ Work through tasks following the plan's ordering. For each task, the recommended
 3. **Write the implementation.** Build the code described in the plan step.
 4. **Run tests — confirm they pass.** Run the full test suite to verify correctness and no regressions.
 5. **Iterate if needed.** If tests fail, fix and re-run. Do not move to the next task until all tests pass.
+6. **Mutate to verify the test catches regressions.** For behavioural tests, mutate the production code to break the behaviour the test asserts, re-run the test, confirm it fails for the right reason, then restore the production code. Skip for trivial assertions, refactors, and doc-only changes.
 
 Mark each task as completed before moving to the next.
 
@@ -53,10 +54,13 @@ After all tasks are complete:
 1. Run the full test suite
 2. Run any linting or type-checking tools appropriate for the project
 3. Walk through the plan's end-to-end verification checklist if one exists
+4. When a property cannot be validated by unit tests (rendering, layout, real-system integration), capture runtime evidence — DOM inspection, runtime measurements, screenshots, or executed-command output — and include it in the artifact.
 
 ### Phase 4: Produce IMPLEMENTATION.md
 
 After everything passes, write an IMPLEMENTATION.md. This is a post-implementation record — it captures what actually happened, not what was supposed to happen.
+
+When implementation is re-entered after CODE_REVIEW, VERIFICATION, or user-instructed adjustments, append a new `## Round N fixes` section to the existing IMPLEMENTATION.md rather than rewriting earlier sections. Each round restates: what was built, deviations, test results, deferred items, and downstream notes scoped to that round only. The original section stays as the record of the first pass.
 
 ---
 
@@ -88,16 +92,11 @@ One paragraph: what was built, what it delivers, and its current state (compilin
 
 ## What Was Built
 
-For each major component implemented, briefly describe:
-- What it does
-- Key implementation choices made during coding
-- File path(s)
+Organise this section along the same axis the plan was organised along — phases, streams, or files. Each entry must name its files and describe the change concretely. Cite stable IDs from PLAN/SPEC (e.g., `P0`, `A.1`, `B.3`) where they exist so deviations, tests, and downstream notes can reference them.
 
 ## Deviations from Plan
 
-Any places where the implementation diverged from the plan:
-- What changed and why
-- Whether the deviation affects downstream work or interfaces
+Numbered list. Each item: what changed, why, whether it affects downstream work or interfaces. Other sections may cite deviations by number.
 
 If no deviations: "Implementation followed the plan exactly."
 
@@ -107,23 +106,36 @@ If no deviations: "Implementation followed the plan exactly."
 - Passing: N
 - Failing: N (with brief explanation if any)
 
-List the test commands used and their output summary.
+For each test command: the exact invocation, the exact pass/fail counts and timing from its output, and the delta versus baseline with each new or changed test named. When mutation verification (Phase 2 step 6) was performed, include a mutation table with columns `Test | Mutation | Observed failure`.
 
 ## Issues Encountered
 
-Problems hit during implementation and how they were resolved:
-- Build/dependency issues
-- Unexpected behavior
-- Plan ambiguities that required judgment calls
+Problems hit during implementation and how they were resolved. When an issue requires non-obvious diagnosis, write it as its own sub-section with: symptoms, why it manifested where it did, the diagnosis, the minimum-change fix, and the regression backstop.
 
 If none: "No issues encountered."
 
+## Deferred
+
+Items intentionally not addressed this round. Each entry: what was deferred, why, where it should be picked up (next round, separate unit, roadmap entry).
+
+If none: "Nothing deferred."
+
+## Hand-off State
+
+State of the working tree at completion:
+- Baseline commit (SHA the implementation builds on)
+- Files staged but not committed
+- Files committed and the commit SHA
+- Untracked files
+- Anything the orchestrator must do next (commit, tag, push)
+
 ## Notes for Downstream Work
 
-Anything that subsequent work or developers should know:
-- Patterns established that should be followed
-- Gotchas discovered
-- Interface details that matter for integration
+The contract handed to the next unit, the reviewer, and any future reader. Cover:
+- Patterns established that subsequent work should follow
+- Gotchas discovered during implementation
+- Interfaces stabilised and how they should be consumed
+- Things subsequent agents must know to avoid breaking established invariants
 
 If none: "No special notes."
 ```

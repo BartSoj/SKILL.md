@@ -308,7 +308,7 @@ Items where the verification could not determine correctness from the provided s
 
 ### Out of scope
 
-- Reading, reviewing, or modifying source code (code review is a separate concern)
+- Modifying source code; formal spec-vs-implementation cross-checking is code review's job. Incidental source reads to support verification (locating start commands, decoding errors, confirming exports) are fine.
 - Writing automated test files or test suites (test authoring is a separate concern)
 - Debugging or fixing failures discovered during verification — report them, do not fix them
 - Performance testing, load testing, or benchmarking

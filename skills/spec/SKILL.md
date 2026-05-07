@@ -17,7 +17,7 @@ The commonest violation is silently picking an answer for a design-level questio
 
 1. **Work unit definition** (required) — the entry from WORK_UNITS.md for this unit. Contains the unit ID, concept, repo, dependencies, file list, test descriptions, estimated LOC, and interface summary.
 2. **Architecture and design suite** (required) — ARCHITECTURE.md plus the design registries whose stable IDs section 1 cites: DOMAIN.md, INTERFACES.md, BEHAVIOR.md, ERRORS.md, QUALITY.md, SECURITY.md, DATA.md, USE_CASES.md. The subset actually loaded is whatever the unit's declared SPEC reads in WORK_UNITS require plus the registries whose IDs the unit touches.
-3. **Decision documents** (optional, auto-discovered) — any `ADR-NN` referenced from the work unit entry or from ARCHITECTURE.md. Discovery mechanism: follow `ADR-NN` citations out of WORK_UNITS and ARCHITECTURE and read each referenced ADR.
+3. **Decision documents** (optional, auto-discovered) — any `D-NNN` referenced from the work unit entry or from any cited design artifact. Discovery mechanism: follow `D-NNN` citations and read each referenced decision at `decisions/D-NNN-slug/DECISION.md`.
 4. **SPEC.md files of dependency units** (required, auto-discovered) — the specs of every unit this unit depends on. Discovery mechanism: walk the dependency list in the WORK_UNITS.md entry for this unit and load each dependency's SPEC.md. These are the source of truth for the exact type names, function signatures, and interface shapes the new unit may import.
 5. **Prior SPEC.md for this unit** (optional, auto-discovered — only if refining) — read fully; preserve every resolved open question, every assigned internal-symbol name, and every `Size hint` already calibrated against earlier drafts. Re-run citations against the current registries — do not assume stale `INV-NN` or `ERR_CODE` are still valid.
 
@@ -45,9 +45,12 @@ Read-set size: WORK_UNITS + DOMAIN are always read; 3–6 further artifacts depe
 
 ### Scope rules
 
+- The spec defines the unit's contract regardless of work type — new feature, bug fix, refactor, or codebase maintenance. It states what must be true of the unit's public surface, behavior, errors, and tests after implementation; it does not prescribe implementation steps, code, hard implementation rules, or edits to top-level design artifacts.
+- The spec operates at the declarative-semantic level: file paths, module / class / namespace names, symbol names and signatures, library and convention names cited from design artifacts and dependency specs. Source code is not an input; do not cite source-line positions, do not embed code fragments, and do not describe transformations of existing code (PLAN sequences the work; IMPLEMENT performs the edits). For "modifies" units, describe the target state of the named symbols, not the transformation that gets there.
 - The spec must explicitly state what is OUT of scope. Closely related functionality that belongs to other units must be named and excluded.
 - Do not spec anything that is not part of this unit's deliverable. If a function will be implemented by a future unit, do not describe its behavior — only reference its expected signature if needed for type-checking.
 - Do not add features, optimizations, or error handling beyond what the work unit definition calls for.
+- When the unit's contract requires changes to entries defined in top-level design artifacts (DOMAIN invariants, INTERFACES endpoints, BEHAVIOR state machines, ERRORS codes, QUALITY metrics, SECURITY threats/mitigations, DATA tables, USE_CASES entries, IA pages/commands), list each change in the §1 "Design-suite changes" sub-section by stable ID and one-line description. Reconcile applies these to the top-level artifacts after implementation; this spec does not edit those artifacts directly.
 
 ### Consistency rules
 
@@ -78,7 +81,7 @@ Layers that do not apply to this unit get an explicit `None — {reason}` line i
 
 ### Single YAML frontmatter block
 
-- Exactly one YAML frontmatter block at the top of the SPEC.md output, never two — even when refining an existing SPEC, merge into a single block. The block carries every field enumerated in the Output Format template (`skill`, `date`, `status`, `unit`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`).
+- Exactly one YAML frontmatter block at the top of the SPEC.md output, never two — even when refining an existing SPEC, merge into a single block. The block carries every field enumerated in the Output Format template (`artifact`, `last_updated`, `status`, `unit`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`).
 - Every count in the frontmatter matches the body exactly: `files_specified` is the number of file entries in § 9; `tests_specified` is the number of tests in § 8; `errors_specified` is the number of rows in § 7's table; `open_questions` is the number of unresolved questions in § 10 (zero when § 10 reads "All questions resolved."); `estimated_loc_prod` and `estimated_loc_test` are the sums of per-file `Size hint` values for production and test files respectively.
 - `status` is `complete` only when § 10 reads "All questions resolved."; `has_open_questions` when one or more questions remain unresolved; `blocked` only when a missing input (e.g., an unregistered `ERR_CODE`, an ungranted dependency SPEC) prevents authoring the SPEC and the gap is explicit in § 10.
 
@@ -90,12 +93,12 @@ Layers that do not apply to this unit get an explicit `None — {reason}` line i
 
 ## Output Format
 
-The SPEC.md file must follow this exact structure. Every section is mandatory. If a section has no content (e.g., no constants for the unit), include the heading with "None." underneath.
+The SPEC.md file must follow this exact structure. Top-level sections (§1–§10) are mandatory; if a section has no content, include the heading with "None." underneath. Sub-blocks within a section may be omitted when empty (do not stub them).
 
 ```markdown
 ---
-skill: SPEC.md
-date: {YYYY-MM-DD}
+artifact: SPEC
+last_updated: {YYYY-MM-DD}
 status: {complete | has_open_questions | blocked}
 unit: {U-NN}
 files_specified: {N}
@@ -113,7 +116,7 @@ open_questions: {N}
 **Unit:** {ID}
 **Name:** {name}
 **Repo:** {repository name}
-**Concept:** {one-paragraph purpose — why this unit exists, what problem it solves, where it sits in the system}
+**Concept:** {one-paragraph purpose, ≤ 8 sentences — why this unit exists, what problem it solves, where it sits in the system. Push longer rationale into §4 or §5.}
 
 ### Dependencies
 
@@ -135,6 +138,14 @@ Cite the stable IDs from the design suite that this unit touches. For layers tha
 - **Security threats faced / mitigations implemented:** faces `THREAT-{NN}` at `{surface}`; implements `MIT-{NN}` at `{function / middleware / guard}`. (From SECURITY §§ 5–6.)
 - **Use cases realized:** `UC-{NN}`, `UC-{NN}`. (From USE_CASES.md.)
 - **Data aggregates / tables touched:** `{table_name}` (represents `{AggregateName}`); access patterns used: `{query summary → idx_name}`. (From DATA §§ 3–5.)
+
+### Design-suite changes
+
+When the unit's contract requires changes to top-level design-artifact entries, list each change here by stable ID, one-line description, and target artifact. Reconcile applies these to the top-level artifacts after implementation; this spec does not edit them directly.
+
+- `{STABLE-ID}` (`{ARTIFACT.md}` § {section}) — {one-line description of the change}
+
+If the unit changes no top-level entries: "None."
 
 ---
 
@@ -168,6 +179,7 @@ For each type:
 - Full definition with every field/variant
 - Each field: name, type, description, and whether optional
 - Any trait implementations required (Display, Serialize, etc.)
+- When the type has ≥ 3 fields, render the field list as a markdown table (`Field | Type | Required | Description`). Do not use code blocks.
 
 ### HTTP Routes (if applicable)
 
@@ -182,7 +194,7 @@ For each route:
 
 ## 4. Behavioral Specification
 
-For each public function or route, a step-by-step prose description:
+For each public function or route, a step-by-step prose description. When the unit has no runtime behavior (types-only, config-only, scaffold), this section may read: "Behavior is declarative — see §3 / §9."
 
 ### `function_name` / `METHOD /path`
 
@@ -208,7 +220,7 @@ n. Return value / response
 
 ## 5. Internal Design Decisions
 
-Decisions that an implementer would otherwise have to make arbitrarily. Each entry:
+Decisions that an implementer would otherwise have to make arbitrarily. Render as Decision/Rationale bullet pairs when ≤ 5 decisions; render as a 3-column table (`# | Decision | Rationale`) when ≥ 5 decisions, with stable IDs `D1`, `D2`, … Cite precedent units when applicable (e.g., "Matches U141's `*_routes` convention").
 
 - **Decision:** {what was decided}
 - **Rationale:** {one-line why}
@@ -224,16 +236,12 @@ Examples of what belongs here:
 
 ## 6. Dependencies & Integration
 
+Include only the sub-blocks that apply to this unit; omit (do not stub) those with no content.
+
 ### External packages/crates
 
 | Package | Version constraint | Features used | Purpose |
 |---------|-------------------|---------------|---------|
-| ... | ... | ... | ... |
-
-### Internal imports
-
-| Symbol | Source unit | Source file | Used in |
-|--------|-----------|-------------|---------|
 | ... | ... | ... | ... |
 
 ### Registration / Mounting
@@ -291,7 +299,7 @@ For each file this unit creates or modifies:
 **Purpose:** Why this file exists as a separate file (one line).
 
 **Exports:**
-- Every public symbol with full signature (mirrors section 3 but anchored to this file)
+- List exported symbol names only; signatures live in § 3 — do not restate them here.
 
 **Internals:**
 - Private functions, types, constants — not their implementation but their existence and role
@@ -338,35 +346,3 @@ Once the user resolves all questions, move each resolution into the appropriate 
 "All questions resolved."
 ```
 
----
-
-## Quality Checklist
-
-Before considering a SPEC.md complete, verify:
-
-- [ ] Every function/route in section 3 has a corresponding behavioral description in section 4
-- [ ] Every file in section 9 has exports that match section 3
-- [ ] Every error in section 7 is referenced in at least one error path in section 4
-- [ ] Every dependency in section 6 is either used in section 9's import maps or explicitly justified (e.g., declared for downstream units)
-- [ ] Every test in section 8 maps to a behavior described in section 4
-- [ ] Section 10 (Open Questions) has only genuine ambiguities — not questions with obvious answers
-- [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.")
-- [ ] No code or pseudocode (unless justified with a note)
-- [ ] Out-of-scope section names at least 3 items that an eager implementer might accidentally include
-- [ ] Every constant/magic value used anywhere in the spec has an explicit value in section 9's Constants table
-- [ ] If the unit touches an HTTP boundary: section 6 includes an HTTP Contract References subsection citing specific interface contract entries
-- [ ] If the unit touches an HTTP boundary: request/response types use exact field names from the interface contract, not independently derived names
-- [ ] If the unit uses HTTP mocks in tests: section 8 states mock fidelity requirement with wire-format field names
-- [ ] Section 1 "Design References" subsection is present with all seven bullets (Domain invariants, Domain events, State machines/sagas, Observability signals, Security threats/mitigations, Use cases, Data aggregates/tables); bullets that do not apply to this unit state `None — {reason}` explicitly
-- [ ] Every `INV-NN` cited in section 1 exists in DOMAIN.md § 9
-- [ ] Every `EVT-name` cited in section 1 exists in DOMAIN.md § 7 or INTERFACES.md § 7
-- [ ] Every `SM-{entity}: {from} → {to}` and `SAGA-{name}` cited in section 1 exists in BEHAVIOR.md §§ 1–2
-- [ ] Every `METRIC-*`, `SLO-*`, and `SPAN-*` cited in section 1 exists in QUALITY.md §§ 3–5
-- [ ] Every `THREAT-NN` and `MIT-NN` cited in section 1 exists in SECURITY.md §§ 5–6
-- [ ] Every `UC-NN` cited in section 1 exists in USE_CASES.md
-- [ ] Every table / access pattern cited in section 1 exists in DATA.md §§ 3–5
-- [ ] Section 7 Error Catalog uses `ERR_CODE` UPPER_SNAKE format for every row; every `ERR_CODE` exists in ERRORS.md § 3 (no invented codes)
-- [ ] Any missing-code need is surfaced in section 10 Open Questions (not silently invented in section 7)
-- [ ] Output file has valid YAML frontmatter with all required fields (`skill`, `date`, `status`, `unit`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`)
-- [ ] Frontmatter counts match the body exactly (`files_specified` = rows in § 9, `tests_specified` = tests in § 8, `errors_specified` = rows in § 7, `open_questions` = unresolved items in § 10, `estimated_loc_prod` / `estimated_loc_test` = summed `Size hint` values)
-- [ ] `status` is `complete` if section 10 Open Questions reads "All questions resolved." and `has_open_questions` otherwise (use `blocked` only when a missing input prevents authoring and § 10 makes the gap explicit)

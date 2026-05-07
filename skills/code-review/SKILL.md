@@ -48,6 +48,8 @@ Combine into a single unified picture.
 
 Also read project guideline files from the repository root: CLAUDE.md, README.md, CONTRIBUTING.md, .editorconfig, linter configs, or any other convention-defining file. These will be passed to every subagent.
 
+**Round detection.** Look in the unit's folder for existing `CODE_REVIEW.md`, `CODE_REVIEW_R2.md`, ... If any exist, this is a fix-round review: set N = max(existing round) + 1, set the output filename to `CODE_REVIEW_R{N}.md`, and load the predecessor's findings list for the resolution map (Phase 3). For round-1 reviews, the output filename is `CODE_REVIEW.md` and N is omitted.
+
 If the combined diff is empty (no changes anywhere), stop and report "No changes to review" instead of producing CODE_REVIEW.md.
 
 ### Phase 2: Parallel Subagent Review
@@ -75,13 +77,13 @@ Every subagent must return its findings using the exact output structure defined
 
 **Contract-registry cross-check.** When Phase 1 discovered `add/INTERFACES.md` or `sdd/INTERFACES.md`, pass its content to the Contracts Reviewer with an explicit instruction to cross-check every changed wire-format boundary — field names, casing conventions, request/response shapes, idempotency semantics — against the registered contract. When `add/ERRORS.md` or `sdd/ERRORS.md` was also discovered, pass it too and require the Contracts Reviewer to cross-check every error code string emitted in the changes against the registry. Any mismatch — a field renamed without updating `INTERFACES.md`, a new error code not registered in `ERRORS.md`, a casing drift, a broken idempotency guarantee — is categorised as a **contract conformance issue** and counted in the `contract_conformance_issues` frontmatter field. When neither registry exists, skip this cross-check and set `contract_conformance_issues: 0`.
 
-Wait for ALL six subagents to complete before proceeding.
+Wait for ALL six subagents to complete before proceeding. If a subagent times out, retry it once.
 
 ### Phase 3: Aggregation — Produce CODE_REVIEW.md
 
 Collect findings from all six subagents and assemble CODE_REVIEW.md:
 
-1. **Deduplicate.** If two subagents flag the same file and line for overlapping reasons (e.g., security-auditor and bug-hunter both flag an unvalidated input), merge them into one finding. Keep the more severe classification and combine the reasoning.
+1. **Deduplicate.** If two subagents flag the same file and line for overlapping reasons (e.g., security-auditor and bug-hunter both flag an unvalidated input), merge them into one finding. Keep the more severe classification and combine the reasoning. The `Found by` field may name multiple agents joined with `+` (combined finding) or `, ` (independently flagged). When three or more subagents independently flag overlapping issues, append `(cross-validated)` to the `Found by` field and consider raising severity by one level (Low → Medium, Medium → High).
 
 2. **Classify severity.** Every finding must be assigned exactly one severity:
    - **Critical** — data loss, security breach, crash in production, silent corruption. Must be fixed before merge.
@@ -113,12 +115,14 @@ skill: CODE_REVIEW.md
 date: {YYYY-MM-DD}
 status: {complete | has_open_questions | blocked}
 verdict: {pass | concerns | fail}
+round: {N}
 scope: {commit_hash | "uncommitted + branch" | "commit range A..B" | "staged"}
 files_reviewed: {N}
 critical_issues: {N}
 high_issues: {N}
 medium_issues: {N}
 low_issues: {N}
+info_issues: {N}
 contract_conformance_issues: {N}
 open_questions: {N}
 ---
@@ -147,6 +151,18 @@ open_questions: {N}
 
 ---
 
+## Previous Review Findings Resolution Map
+
+Include this section only when `round > 1`. Maps every finding from the predecessor review to its current status.
+
+| Prior Finding | Severity | Status | Notes |
+|---|---|---|---|
+| {N. Title} | Critical / High / Medium / Low / Info | resolved / partially-resolved / regressed / deferred / not-addressed | {one-line note} |
+
+(Omit this section for round-1 reviews.)
+
+---
+
 ## Critical Issues
 
 Issues that must be resolved before merge. Each issue includes location, explanation, and a concrete fix.
@@ -162,6 +178,8 @@ Issues that must be resolved before merge. Each issue includes location, explana
 **Impact:** {What breaks, who is affected, under what conditions.}
 
 **Fix:** {Specific change to make. Not "add validation" — state what validation, on which field, with what error.}
+
+**Empirical verification:** *(recommended when mutation is feasible)* {The mutation applied, the test result before and after, the conclusion drawn.}
 
 (Repeat for each critical issue. If none: "No critical issues found.")
 
@@ -182,6 +200,8 @@ Issues that carry real risk and should be fixed before merge.
 **Impact:** {description}
 
 **Fix:** {specific fix}
+
+**Empirical verification:** *(recommended when mutation is feasible)* {The mutation applied, the test result before and after, the conclusion drawn.}
 
 (Repeat for each. If none: "No high-priority issues found.")
 
@@ -217,6 +237,18 @@ Optional improvements.
 
 ---
 
+## Info-Level Observations
+
+Documentation inconsistencies, carry-over notes, and observations that do not imply action by the implementor.
+
+| # | File | Note |
+|---|------|------|
+| 1 | `path:line` | {brief observation} |
+
+(Omit this section if `info_issues: 0`.)
+
+---
+
 ## Positive Observations
 
 Patterns, decisions, and code quality worth acknowledging.
@@ -244,7 +276,9 @@ Relevant findings from git history analysis. Omit this section if the historical
 | Medium | {N} |
 | Low | {N} |
 
-**Verdict:** {PASS — no critical or high issues / CONCERNS — high issues exist, recommend fixing / FAIL — critical issues must be resolved}
+**Verdict:** {PASS | CONCERNS | FAIL} — {one-line headline}.
+
+{1–3 paragraphs explaining what the unit ships well, what concerns remain, and what the implementor should do next.}
 
 ---
 
@@ -257,7 +291,7 @@ Genuinely ambiguous items where multiple valid interpretations exist and the rev
 (If none: "No open questions.")
 ```
 
-**Frontmatter rules.** The output file contains exactly one YAML frontmatter block at the top — never multiple. The `verdict` field follows the issue counts mechanically: `fail` if `critical_issues > 0`; `concerns` if `critical_issues == 0` and `high_issues > 0`; otherwise `pass`. The sum `critical_issues + high_issues + medium_issues + low_issues` must equal the total number of non-positive findings listed in the body. `contract_conformance_issues` counts all findings (at any severity) that the Contracts Reviewer flagged as mismatches against `INTERFACES.md` or `ERRORS.md`; when neither registry exists in the repository, set it to `0`. `scope` reflects the actual reviewed range — use `"uncommitted + branch"` for default auto-discovery, the bare commit hash for a single-commit scope, `"commit range A..B"` for a range, or `"staged"` for staged-only review.
+**Frontmatter rules.** The output file contains exactly one YAML frontmatter block at the top — never multiple. The `verdict` field follows the issue counts mechanically: `fail` if `critical_issues > 0`; `concerns` if `critical_issues == 0` and `high_issues > 0`; otherwise `pass`. The sum `critical_issues + high_issues + medium_issues + low_issues + info_issues` must equal the total number of non-positive findings listed in the body. `contract_conformance_issues` counts all findings (at any severity) that the Contracts Reviewer flagged as mismatches against `INTERFACES.md` or `ERRORS.md`; when neither registry exists in the repository, set it to `0`. `scope` reflects the actual reviewed range — use `"uncommitted + branch"` for default auto-discovery, the bare commit hash for a single-commit scope, `"commit range A..B"` for a range, or `"staged"` for staged-only review. The `round` field is present only when this is a fix-round review (N > 1) and matches the suffix in the output filename (`CODE_REVIEW_R{N}.md`); for round-1 reviews, the field is omitted and the filename is `CODE_REVIEW.md`.
 
 ---
 
@@ -296,6 +330,6 @@ Before considering CODE_REVIEW.md complete, verify:
 - [ ] The Summary verdict is consistent with the issue counts (FAIL if any Critical, CONCERNS if any High, PASS otherwise)
 - [ ] No placeholders, TODOs, or vague language ("appropriate", "relevant", "as needed", "etc.")
 - [ ] The document is self-contained — readable and actionable without opening any other file
-- [ ] Frontmatter counts match the body: `critical_issues + high_issues + medium_issues + low_issues` equals the total number of findings listed
+- [ ] Frontmatter counts match the body: `critical_issues + high_issues + medium_issues + low_issues + info_issues` equals the total number of findings listed
 - [ ] The `verdict` field follows issue counts mechanically (`fail` if any Critical, `concerns` if any High with no Critical, otherwise `pass`)
 - [ ] When `INTERFACES.md` or `ERRORS.md` exist in the project, the review notes whether each changed boundary matches the registered wire format and error codes, and `contract_conformance_issues` is populated accordingly; when neither exists, the field is `0`
