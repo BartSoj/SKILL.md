@@ -28,16 +28,6 @@ Read-set size: 4–5 per-unit artifacts + 1 WORK_UNITS entry + 0–4 top-level a
 
 ---
 
-## Tools
-
-- **Codebase read** — read source files for ground-truth behavior. The code is the ultimate authority on what was built.
-- **Codebase write** — direct edits to SPEC.md and top-level artifacts via `Edit` (for surgical replacements) and `Write` (only for new sections or full regeneration of a section, never the whole artifact).
-- **No subagents.** This is a hard rule — see Rules § "Direct edits, no subagents."
-- **No execution sandbox.** Reconcile reasons from artifacts and code; it does not run code.
-- **No web search.** Reconcile reasons from project artifacts and codebase; external knowledge is not relevant.
-
----
-
 ## Workflow
 
 Reconciliation runs as a single agent in four phases. **Do not dispatch subagents at any point.** Every read, every classification, every edit is performed by this agent directly.

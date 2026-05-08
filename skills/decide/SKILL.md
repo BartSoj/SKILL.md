@@ -30,21 +30,6 @@ Read-set size: 1 source + 1–4 cited + 0–2 prior decisions + tool reads (web,
 
 ---
 
-## Tools
-
-DECIDE has the **broadest tool surface in ADD**. Most skills are file-readers; DECIDE is an investigator. Use each tool when the question warrants it, not because it is available (Rule 11).
-
-| Tool | When | How |
-|------|------|-----|
-| **Web search** | Question involves a library, framework, protocol, format, RFC, standard, registry, or external API. | `WebSearch`, `WebFetch`. Query official docs, GitHub source, RFCs, MDN, registries. Cite URLs in § 4 Web. Multiple queries are normal. |
-| **Codebase grep + read** | Question involves an existing convention, naming, pattern, or conflict in this project. | `Grep` (or `rg` / `ast-grep` via `Bash`) for searches; `Read` for targeted file reads. Cite `file:line` in § 4 Codebase with 5–10-line excerpts. |
-| **Execution sandbox** | Question is empirical (does X actually do Y?) and other sources are inconclusive. **Use sparingly.** | Create a scratch directory at `decisions/D-{NNN}-{slug}/scratch/`. Initialize an appropriate toolchain (npm/cargo/uv). Run the experiment. Capture stdout/stderr/exit code verbatim. Cite outputs in § 4 Runtime. The scratch dir persists for reproducibility. |
-| **User-question via YAML** | Question is user-intent: multiple options are technically valid and the right one depends on product goals or user preferences not derivable from project artifacts. | Write a decision file with `status: awaiting-user`, populate `user_question` (Rule 5 — self-contained brief), set `user_response: null`. Exit. The orchestrator surfaces the file to the human. The human edits it (sets `status: accepted`, adds `user_response`). The orchestrator resumes when status changes. |
-
-**No tool pauses the agent to ask the user during execution.** The skill runs headless from start to finish (ADD P9). The user-question mechanism is asynchronous — the skill writes the question into the file and exits; the user answers later by editing the file.
-
----
-
 ## Workflow
 
 Five phases, single-agent (no subagents — the agent is investigator and decision-maker, both roles in one). Phases are sequential; Phase 4 may loop back to Phase 3 if evidence is insufficient.

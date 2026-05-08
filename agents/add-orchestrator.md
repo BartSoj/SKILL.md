@@ -196,7 +196,7 @@ Internalize these before executing. They determine every scheduling and retry de
 Each skill invocation is a fresh agent with no memory of prior invocations. Files are the only channel. If a fact isn't in a file the agent reads, it doesn't exist for that agent.
 
 ### 2. Context budget is real
-Each skill reads ≤ 10 artifacts fully. Each artifact is ≤ 2000 lines (typical 500–1500). These constraints shaped the artifact consolidation (GLOSSARY+DOMAIN_MODEL → DOMAIN; HTTP+STYLE+EVENTS+EVOLUTION → INTERFACES; OBSERVABILITY+PERFORMANCE → QUALITY; THREAT_MODEL+CONTROLS → SECURITY; DEPLOYMENT+RUNBOOK+CONFIG+INTEGRATIONS → OPERATIONS; DATABASE+ACCESS_PATTERNS → DATA). Respect them: do not bundle extra artifacts into a prompt for convenience.
+Each skill reads ≤ 10 artifacts fully. Each artifact is ≤ 2000 lines (typical 500–1500).
 
 ### 3. Stable IDs
 Each skill emits stable identifiers that downstream skills cite:
@@ -255,7 +255,6 @@ unset CLAUDECODE && claude -p "/SKILL_NAME.md <instructions on the same line>" -
 - **Enumerate the read set explicitly.** Never tell the agent to "figure out what it needs". Always state: "Read DOMAIN.md and ARCHITECTURE.md. Write INTERFACES.md." This is the ADD context-budget discipline.
 - **Specify the output path precisely.** The agent writes to exactly one file.
 - **Do not parse stdout.** Stdout may contain progress messages and formatting. Check whether the expected output file exists after the process completes.
-- **Set long timeouts.** Use the Bash tool's timeout parameter: 3600000ms (60 min).
 - **Prefer file-based output.** Stdout is a debug channel, not the data channel.
 
 ### Continue or Resume a Previous Session (rarely used)
@@ -386,15 +385,6 @@ Walk phases A → I in order. For each phase, check whether its output file exis
 
 For Phase H, the per-tier per-unit artifacts (`SPEC.md`, `SPEC_REVIEW.md`, optionally `PROTOTYPE.md`, `PLAN.md`, `IMPLEMENTATION.md`, `CODE_REVIEW.md`, `VERIFICATION.md`, then `RECONCILIATION.md` at tier boundary) form a sequence — read whichever ones exist for each unit and infer where each unit is in its pipeline. Apply judgment rather than rigid completeness rules; partial outputs sometimes warrant resuming, sometimes warrant re-running.
 
-If the user specified a phase explicitly, honor that. If they said "start over", remove or archive existing artifacts first (ask for confirmation if anything substantial exists).
-
-Log the detection result once at the start:
-
-```
-Resuming from Phase D1. Completed: A1, A2, B1, B2, C (WEB_IA, CLI_IA).
-Missing: INTERFACES, DATA, ERRORS, BEHAVIOR, QUALITY, SECURITY, OPERATIONS, DESIGN_REVIEW, WORK_UNITS, per-unit, system.
-```
-
 ---
 
 ## Phase A — Discovery
@@ -406,8 +396,6 @@ Turn a user's one-paragraph intent into a product vision and a use-case catalogu
 ```bash
 unset CLAUDECODE && claude -p "/PROPOSAL.md The user intent for this project is: <paste the user's prompt here verbatim>. Write the proposal to PROPOSAL.md." --permission-mode bypassPermissions
 ```
-
-Use 3600000ms timeout.
 
 **After the run:** Read the proposal. It should articulate the problem, the solution, principles, non-goals, and concrete success criteria. Resolve open questions — directly when clear and in scope, via `/DECISION.md` otherwise. If the output is vague or shallow, re-run with sharper context.
 
@@ -453,12 +441,6 @@ Determine the set from:
 
 1. **Explicit prompt.** If the user said "surfaces: web, cli", honor that. Empty set → skip Phase C entirely.
 2. **PROPOSAL + ARCHITECTURE inference.** Read § 6 Target Users / Actors in PROPOSAL and § 2 Components in ARCHITECTURE. Pick the surfaces the project describes. Prefer inclusion when uncertain — a missing IA causes per-unit drift; an extra IA costs one skill invocation. Headless service → zero IAs → skip Phase C.
-
-Log the chosen set with rationale before generating:
-
-```
-Chosen IAs: WEB, CLI — rationale: ARCHITECTURE § 2 describes a React frontend in `web/` and a clap-based CLI in `cli/`. No mobile/TUI/voice surface in scope.
-```
 
 ### Generation
 
@@ -579,8 +561,6 @@ The gate that protects Phase G and beyond from expensive regenerations caused by
 unset CLAUDECODE && claude -p "/DESIGN_REVIEW.md Read DOMAIN.md, ARCHITECTURE.md, INTERFACES.md (if exists), DATA.md, BEHAVIOR.md, QUALITY.md, SECURITY.md, and ERRORS.md. Review the design suite for cross-artifact consistency, completeness against downstream needs, and internal quality. Write DESIGN_REVIEW.md." --permission-mode bypassPermissions
 ```
 
-Use 3600000ms timeout. This is the heaviest read in the pipeline (8 artifacts).
-
 ### Acting on the review
 
 Read the design review. If it indicates the design is consistent and complete enough to proceed with decomposition, move on to Phase G. Otherwise, work through the proposed changes — Edit small/localized fixes directly, regenerate the originating skill for structural fixes — and re-run F when changes are applied.
@@ -657,8 +637,6 @@ For each unit, sequentially after its SPEC is clean:
 unset CLAUDECODE && claude -p "/SPEC_REVIEW.md Read WORK_UNITS.md (the unit entry for {unit}), {unit}/SPEC.md, the unit's declared design read-set ({list the same artifacts H1 read for this unit}), and any dependency unit SPECs ({dep_unit}/SPEC.md). Review the SPEC for scope drift, premature deferral, reinvention (web-search OSS alternatives), convention drift (codebase compatibility), internal quality, and empirical risks. Write {unit}/SPEC_REVIEW.md." --permission-mode bypassPermissions
 ```
 
-Use 3600000ms timeout.
-
 **After:** Read the spec review. Use its findings to decide what comes next — proceed to H4 if the SPEC is sound; regenerate H1 (passing the review as additional context) if there are substantial issues to fix; run H3 first if the review surfaces empirical risks worth prototyping. Resolve open questions — directly when clear and in scope, via `/DECISION.md` otherwise. If repeated rounds aren't converging, surface to the user rather than spinning indefinitely.
 
 ### H3. `/PROTOTYPE.md` → `U<NN>/PROTOTYPE.md` (conditional on H2 verdict prototype-needed)
@@ -666,8 +644,6 @@ Use 3600000ms timeout.
 ```bash
 unset CLAUDECODE && claude -p "/PROTOTYPE.md Read {unit}/SPEC_REVIEW.md (the Risk Surface and Prototype Brief sections), {unit}/SPEC.md, and the design artifacts cited by the R-NN risks. Build prototypes inside {unit}/prototype/ to empirically resolve the risks. Write {unit}/PROTOTYPE.md." --permission-mode bypassPermissions
 ```
-
-Use 3600000ms timeout. The prototype agent has full freedom inside `{unit}/prototype/` — it may install dependencies, write any code, and run scripts as many times as needed.
 
 **After:** Read the prototype findings. Use them to inform the next H1 regeneration — encode whatever the prototype discovered (constraints, caveats, structural insights) into the regenerated SPEC. If the prototype surfaces a fundamental incompatibility with the SPEC's approach, the regenerated SPEC should pick a different approach rather than restate the broken one. Confirm the scratch directory is preserved for reproducibility. Resolve open questions — directly when clear and in scope, via `/DECISION.md` otherwise. Surface to the user if prototype rounds aren't yielding a workable approach.
 
@@ -687,8 +663,6 @@ unset CLAUDECODE && claude -p "/PLAN.md Read {unit}/SPEC.md. Write the plan to {
 unset CLAUDECODE && claude -p "/IMPLEMENTATION.md Read {unit}/PLAN.md and {unit}/SPEC.md. Implement the unit. Write the implementation report to {unit}/IMPLEMENTATION.md." --permission-mode bypassPermissions
 ```
 
-Use 3600000ms timeout.
-
 **After:** Read the implementation report. Note any deviations from the plan (they'll drive H8 reconcile at tier boundary), note any issues encountered, and assess test results. Use judgment to decide whether to go back to H4 (if the plan was wrong), stay at H5 for a focused fix, or proceed to H6. Resolve open questions — directly when clear and in scope, via `/DECISION.md` otherwise. **Commit the implementation** — stage and commit with a message like `U07: implement repository lifecycle` and record the commit hash for H6.
 
 ### H6. `/CODE_REVIEW.md` → `U<NN>/CODE_REVIEW.md`
@@ -696,8 +670,6 @@ Use 3600000ms timeout.
 ```bash
 unset CLAUDECODE && claude -p "/CODE_REVIEW.md Review the changes in commit {commit_hash}. Reference INTERFACES.md (if exists) for contract conformance and ERRORS.md for error-code conformance. Write the review to {unit}/CODE_REVIEW.md." --permission-mode bypassPermissions
 ```
-
-If no INTERFACES.md exists (single-component project), omit that instruction.
 
 **After:** Read the review. Pay extra attention to contract conformance findings — wrong field names, missing serde annotations, mock data using wrong casing — these cause integration failures even when unit tests pass. Use the Feedback Loop Rules below to decide where to go next. Resolve open questions — directly when clear and in scope, via `/DECISION.md` otherwise.
 
@@ -868,8 +840,6 @@ Question (verbatim from {source-artifact}.md § Open Questions):
 For a batched dependent set, list all the questions in the prompt's "Question" section and instruct the skill to produce one decision file covering them all.
 
 For sequential, dispatch the first invocation, wait, read its decision file, then dispatch the second with the first's decision file added to the read set.
-
-Use 3600000ms timeout.
 
 ### Apply
 
