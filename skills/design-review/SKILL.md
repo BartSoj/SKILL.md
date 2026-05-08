@@ -1,13 +1,13 @@
 ---
 name: DESIGN_REVIEW.md
-description: Gate the design suite before decomposition — read DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, QUALITY, SECURITY, ERRORS end-to-end and catalogue every cross-artifact contradiction, every completeness gap that blocks downstream steps, every internal-quality defect, and every dangling cross-reference, then emit a verdict (`pass` or `fix-required`) that drives orchestrator branching. Use when asked to review the design, run a design review, check design artifacts for consistency, gate the pipeline before decomposition, audit the design suite before `/WORK_UNITS.md`, or produce a DESIGN_REVIEW.md.
+description: Gate the design suite before continuous implementation begins — read DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, QUALITY, SECURITY, ERRORS end-to-end and catalogue every cross-artifact contradiction, every completeness gap that blocks downstream steps, every internal-quality defect, and every dangling cross-reference, then emit a verdict (`pass` or `fix-required`) that drives orchestrator branching. Use when asked to review the design, run a design review, check design artifacts for consistency, gate the bootstrap pipeline before continuous workflow begins, audit the design suite, or produce a DESIGN_REVIEW.md.
 ---
 
 # Task: Generate DESIGN_REVIEW.md — Design-Suite Gate Review
 
 ## Objective
 
-Produce a DESIGN_REVIEW.md that serves as the mandatory gate between the design phases (A–E) and decomposition (G) of the Agent-Driven Development workflow. It reviews the eight-artifact design suite — DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, QUALITY, SECURITY, ERRORS — along three orthogonal axes (cross-artifact consistency, completeness against downstream needs, internal quality of each artifact), catalogues every finding under stable `CF-NN` / `MF-NN` / `QF-NN` IDs with severity, evidence, and a proposed actionable edit, validates every stable-ID citation via a cross-reference matrix, and emits a machine-readable verdict (`pass` or `fix-required`) that the orchestrator branches on. An agent reading this document alone can — without opening any of the eight reviewed artifacts — tell which artifacts need regeneration, exactly what content must change, and whether the pipeline may proceed to `/WORK_UNITS.md` or must loop back through design.
+Produce a DESIGN_REVIEW.md that serves as the mandatory gate at the end of the bootstrap design phases (A–E) of the Agent-Driven Development workflow, and re-runs whenever G8 reconcile applies major top-level edits during continuous implementation. It reviews the eight-artifact design suite — DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, QUALITY, SECURITY, ERRORS — along three orthogonal axes (cross-artifact consistency, completeness against downstream needs, internal quality of each artifact), catalogues every finding under stable `CF-NN` / `MF-NN` / `QF-NN` IDs with severity, evidence, and a proposed actionable edit, validates every stable-ID citation via a cross-reference matrix, and emits a machine-readable verdict (`pass` or `fix-required`) that the orchestrator branches on. An agent reading this document alone can — without opening any of the eight reviewed artifacts — tell which artifacts need regeneration, exactly what content must change, and whether the pipeline may proceed to continuous per-trigger work or must loop back through design.
 
 DESIGN_REVIEW.md is the type-checker of the design phase. It catches the errors that do not manifest within any single artifact but emerge from relationships between them: an invariant declared in DOMAIN but unenforced by a DATA constraint; a wire event declared in INTERFACES but un-emitted by any BEHAVIOR saga; an error code referenced from an endpoint but missing from the ERRORS registry; a use case present in USE_CASES but un-realised by any endpoint or saga. Without this gate these contradictions surface during `/spec` or `/implement`, forcing cascade regenerations of downstream artifacts; with it, the fix is localised to the offending design artifact and the pipeline re-enters only the minimum necessary scope. The defining discipline — and the commonest violation — is **every finding is actionable, every finding cites evidence, and the `verdict` field matches the blocking-finding count exactly**. Subjective complaints, vague "this is inconsistent" findings, and verdicts that override the blocking-count rule turn the gate into noise.
 
@@ -41,7 +41,7 @@ Before Phase 2, read `references/review-checklist.md` for the systematic probes 
 
 - **Per-artifact quality probes** — eight sections, one per artifact, each listing the internal-quality defects to look for (placeholder language, unresolved open questions, malformed IDs, orphan entries).
 - **Pairwise consistency probes** — ordered pairs (e.g., DOMAIN ↔ DATA, INTERFACES ↔ BEHAVIOR, SECURITY ↔ INTERFACES) with the specific contradictions that arise at each pair.
-- **Completeness probes** — grouped by downstream consumer (`/WORK_UNITS.md`, `/spec`, `/system-verify`), each listing the information those steps depend on.
+- **Completeness probes** — grouped by downstream consumer (per-unit `/SPEC.md`, `/system-verification`), each listing the information those steps depend on.
 - **Cross-reference index recipe** — the exact prefixes to extract and match (`INV-`, `EP-`, `EVT-`, `ERR_`, `SM-`, `SAGA-`, `METRIC-`, `SLO-`, `THREAT-`, `MIT-`, `UC-`, `ADR-`, `CFG_`).
 
 The checklist owns the systematic enumeration; the workflow below describes how to apply its output.
@@ -82,7 +82,7 @@ Each contradiction becomes a `CF-NN` entry in § 2 Consistency Findings.
 
 ### Phase 4: Completeness Pass
 
-For each downstream skill that consumes the design suite — `/WORK_UNITS.md`, the per-unit `/spec`, `/system-verify` — apply the completeness probes from `references/review-checklist.md` § "Completeness probes". A finding is a completeness defect when downstream execution cannot succeed without the missing content. Typical findings:
+For each downstream skill that consumes the design suite — the per-unit `/SPEC.md`, `/system-verification` — apply the completeness probes from `references/review-checklist.md` § "Completeness probes". A finding is a completeness defect when downstream execution cannot succeed without the missing content. Typical findings:
 
 - BEHAVIOR has `SAGA-push` but no idempotency key — `/spec` for the push handler will invent one, violating the idempotency-key authority rule.
 - QUALITY § 4 has `SLO-push-availability` but no burn-rate alert in § 6 — `/operations` runbook has no routing.
@@ -211,7 +211,7 @@ open_questions: {N}
 
 # DESIGN_REVIEW — {ProductName}
 
-> Gate review of the design suite before `/WORK_UNITS.md`. Consumes DOMAIN,
+> Gate review of the design suite before continuous per-trigger work begins. Consumes DOMAIN,
 > ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, QUALITY, SECURITY, ERRORS end-to-end
 > and (optionally) USE_CASES and one surface IA. Produces a machine-readable
 > verdict (`pass` or `fix-required`) that the orchestrator branches on.
@@ -265,7 +265,7 @@ Missing information that downstream steps need. Numbered `MF-NN`.
 - **Severity:** `{blocking / high / medium / low}`
 - **Artifact:** `{which document is incomplete}`
 - **What's missing:** `{specific content gap — e.g., "SAGA-push in BEHAVIOR § 2 does not list an idempotency key; INTERFACES § 4 mandates one for every mutating endpoint."}`
-- **Who needs this:** `{downstream step — /WORK_UNITS.md, /spec for {U-NN}, /system-verify}`
+- **Who needs this:** `{downstream step — /SPEC.md for {u<NN>}, /system-verification}`
 - **Proposed resolution:** `{specific actionable edit — e.g., "Add Idempotency Key field to SAGA-push in BEHAVIOR § 2 citing INTERFACES § 4 header name."}`
 
 (Repeat per finding. If none: "No completeness findings — every downstream consumer has what it needs.")
@@ -338,7 +338,7 @@ For each `UC-NN` in USE_CASES § 2, verify traceability to DOMAIN, INTERFACES/BE
 
 ## § 8. Required Changes
 
-(Include this section only if `verdict: fix-required`. If `pass`: write "No changes required — pipeline may proceed to /WORK_UNITS.md." and omit the rest.)
+(Include this section only if `verdict: fix-required`. If `pass`: write "No changes required — bootstrap is complete; the continuous per-trigger workflow may begin." and omit the rest.)
 
 Grouped by target artifact. Each item cites the finding ID that drove it.
 
@@ -416,7 +416,7 @@ Review-level ambiguities only — cases where the reviewer cannot tell whether a
 - Substantive audit of performance claims, security controls, or capacity targets — owned by the respective design skills and by `/system-verify`. This review verifies internal-quality and cross-artifact consistency of those artifacts, not the correctness of their substantive claims (e.g., we flag an orphan THREAT-NN, not whether the threat model is comprehensive for the domain).
 - Operations review — owned by `/operations`; OPERATIONS.md is not in the required read set because this gate runs before decomposition, often before `/operations` has produced.
 - Surface-IA review beyond the one optionally read — exceeding one IA exhausts the context budget. Additional surface review is a separate invocation.
-- Decomposition of design into work units — owned by `/WORK_UNITS.md`, which runs immediately after `pass`.
+- Picking up triggers and creating units — performed by the orchestrator after `pass`. Each trigger (`roadmap/<NNN>-<slug>/ROADMAP.md` or `issues/<NNN>-<slug>/ISSUE.md`) drives a per-unit pipeline run starting at `/SPEC.md`.
 - Conflict resolution when a reviewer finds a genuinely ambiguous case — surfaced in § 9; the orchestrator or a human resolves and re-runs the originating skill.
 
 ---

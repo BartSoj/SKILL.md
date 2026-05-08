@@ -9,7 +9,7 @@ description: Design the persistent-data layer — datastore choice, ER diagram, 
 
 Produce a DATA.md that serves as the single source of truth for the system's persistent-data layer: which datastore(s) the system uses and why, the ER (or collection) diagram, the schema for every table or collection with column-by-column typing and constraints, every index with its rationale, the ordered list of migrations, the retention and deletion policy per table, the sensitive-data inventory per column, and the consistency and concurrency strategies applied across entities. Crucially, DATA.md extends traditional database documentation with an **access-patterns section** that maps every query the system actually runs to the index that serves it — schemas without access patterns are under-specified. An agent reading this document alone can explain, for any query the system issues, which index serves it and at what cost class; for any table, which aggregate it persists and which invariants its constraints enforce; for any column holding sensitive data, its classification, masking rule, and encryption posture.
 
-DATA.md is read by `/operations` (for migration sequencing, retention runbooks, and backup posture), `/security` (for the sensitive-data inventory), `/WORK_UNITS.md` (for migration ordering constraints when units ship sequentially), every `/spec` that touches persistence (to draw typing and constraints from a single source), `/review` for conformance against the registered schema, and `/system-verify` during bootstrap. The defining discipline — and the commonest violation — is **every query is indexed or explicitly accepted as a scan**: a schema that lists columns and indexes without the access-pattern map is half a design, because it does not prove the indexes are the right ones. Co-locating schema, indexes, and access patterns in one artifact is the deliberate read-pattern optimisation that makes this skill exist.
+DATA.md is read by `/operations` (for migration sequencing, retention runbooks, and backup posture), `/security` (for the sensitive-data inventory), every per-unit `/SPEC.md` that touches persistence (to draw typing and constraints from a single source), `/code-review` for conformance against the registered schema, and `/system-verification` during bootstrap. The defining discipline — and the commonest violation — is **every query is indexed or explicitly accepted as a scan**: a schema that lists columns and indexes without the access-pattern map is half a design, because it does not prove the indexes are the right ones. Co-locating schema, indexes, and access patterns in one artifact is the deliberate read-pattern optimisation that makes this skill exist.
 
 ---
 
@@ -461,7 +461,7 @@ erDiagram
 - Error taxonomy and codes — owned by `/errors` (this document cites codes by string where concurrency failures surface)
 - Full glossary, entities, aggregates, value objects, invariants, bounded contexts themselves — owned by `/domain`
 - Use case catalogue — owned by `/use-cases`
-- Per-unit specs, plans, implementations — owned by `/WORK_UNITS.md` and the per-unit pipeline
+- Per-unit specs, plans, implementations — owned by the per-unit pipeline (`/SPEC.md` through `/RECONCILIATION.md`) under `units/<area>/u<NN>/`
 
 ---
 

@@ -17,12 +17,12 @@ DECIDE exists because two upstream failure modes proved costly during ADD pipeli
 
 The orchestrator passes these per invocation. The skill does NOT auto-discover the full design suite; reads are scoped.
 
-1. **Source artifact** (required, primary subject) — the artifact carrying the Open Question(s) being resolved. Typically a path at the project root (e.g., `U03/SPEC.md`, `INTERFACES.md`, `ARCHITECTURE.md`). The skill quotes the question verbatim from this file.
+1. **Source artifact** (required, primary subject) — the artifact carrying the Open Question(s) being resolved. Typically a path at the project root (e.g., `units/<area>/u03/SPEC.md`, `INTERFACES.md`, `ARCHITECTURE.md`, `roadmap/<NNN>-<slug>/ROADMAP.md`, `issues/<NNN>-<slug>/ISSUE.md`). The skill quotes the question verbatim from this file.
 2. **Cited artifacts** (required, 1–4 typically) — artifacts the question text references or that are needed to understand the question. The orchestrator scopes this. Examples:
    - For a wire-format question: `INTERFACES.md`
    - For a domain-invariant question: `DOMAIN.md`
    - For a state-machine question: `BEHAVIOR.md`
-   - For a unit-scope question: the unit's `U<NN>/SPEC.md`
+   - For a unit-scope question: the unit's `units/<area>/u<NN>/SPEC.md`
 3. **Prior dependent decisions** (optional, auto-passed when sequenced) — when this invocation depends on a previously-resolved decision, the prior `decisions/D-NNN-slug/DECISION.md` file is in the input set. The skill cites it under § 4 Prior Decisions.
 4. **`decisions/` directory** (auto-discovered) — existing decisions at `decisions/D-*/DECISION.md`. Read for two purposes: (a) idempotency check in Phase 1 (has this question already been resolved?), (b) NNN computation in Phase 5 (next available number).
 
@@ -152,7 +152,7 @@ If evidence gathered in Phase 3 is insufficient (the agent reaches Phase 4 witho
 - `user_question`: the populated brief when `awaiting_user: true`; empty/null otherwise. Multi-line YAML scalar (`|` block).
 - `user_response`: `null` until the user fills it.
 - `resolved_date`: today's date (`YYYY-MM-DD`) when the skill emits `status: accepted` directly. `null` when emitting `status: proposed | awaiting-user | abandoned`. The orchestrator updates this from `null` to today's date on the `awaiting-user` → `accepted` transition (when the user edits the file).
-- `implications`: YAML list of artifact IDs (e.g., `[INTERFACES, DOMAIN, U03/SPEC]`) that must be updated as a result.
+- `implications`: YAML list of artifact IDs (e.g., `[INTERFACES, DOMAIN, units/auth/u03/SPEC]`) that must be updated as a result.
 - `reversal_cost`: `low | medium | high`.
 - `open_questions`: count of unresolved checkbox items in § 9.
 
@@ -499,7 +499,7 @@ needs its own decision file.
 - Resolving Open Questions that have unambiguous answers — those should be resolved silently by the upstream skill, not surfaced. (DECIDE handles only genuine ambiguity that escaped the upstream skill.)
 - Pre-loading the full design suite — reads are scoped to what the orchestrator passes plus what tools warrant
 - Pausing during execution to ask the user — user-question is asynchronous (file-based). The skill never blocks on human interaction during a run (ADD P9)
-- Writing code, tests, or production implementation — owned by `/IMPLEMENTATION.md` (H5) and other implementation-style skills
+- Writing code, tests, or production implementation — owned by `/IMPLEMENTATION.md` (G5) and other implementation-style skills
 - Architectural design beyond what the question's options entail — owned by `/ARCHITECTURE.md` for foundational structure
 - Updating prior decision files (other than the new file linking to a superseded prior via § 7 Implications) — the orchestrator applies supersession edits
 

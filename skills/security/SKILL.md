@@ -56,7 +56,7 @@ Each `THREAT-NN` fills every Output Format field: element, STRIDE category, conc
 
 ### Phase 4: Mitigation Catalogue
 
-§ 6 enumerates every control. Each `MIT-NN` fills the Output Format template: addressed threats, concrete description, implementation location (ARCHITECTURE § 2 component + `U-NN` from WORK_UNITS when known — when unknown, state the component and surface the missing unit in § 16), verification method (automated test / manual audit / code review / penetration test), dependencies.
+§ 6 enumerates every control. Each `MIT-NN` fills the Output Format template: addressed functional location (ARCHITECTURE § 2 component + `u<NN>` once a unit owns the implementation — when no unit yet exists, state the component and surface the missing-owner gap in § 16), verification method (automated test / manual audit / code review / penetration test), dependencies.
 
 Defence-in-depth is expected: one threat may reference multiple `MIT-NN`, and one `MIT-NN` may address multiple threats. A `MIT-NN` with no implementation location is an aspiration, not a control. Orphan threats (no mitigation) must be explicitly accepted in § 14 with compensating controls.
 
@@ -116,7 +116,7 @@ Every `THREAT-NN` in § 5 has at least one `MIT-NN` in its Mitigations field, OR
 
 ### 3. Every mitigation names an implementation location
 
-Every `MIT-NN` in § 6 names a concrete implementation location: a component from ARCHITECTURE § 2 and — when the work unit is known — a `U-NN` from WORK_UNITS.md. A control with no owner is not a control. If the work unit is not yet decomposed, state the component and add a § 16 entry: `Which unit owns MIT-NN once /WORK_UNITS.md runs?`.
+Every `MIT-NN` in § 6 names a concrete implementation location: a component from ARCHITECTURE § 2 and — when an implementing unit exists — a `u<NN>` from `units/<area>/u<NN>/`. A control with no owner is not a control. If no unit yet implements the mitigation, state the component and add a § 16 entry: `Which unit owns MIT-NN?` — to be resolved when a roadmap or issue trigger picks it up.
 
 ### 4. Every trust boundary from INTERFACES has a § 3 entry and a DFD crossing
 
@@ -311,7 +311,7 @@ contains either `THREAT-NN` entries or an explicit dismissal.
 
 - **Addresses threats:** `THREAT-{NN}`, `THREAT-{NN}`
 - **Description:** `{concrete control — e.g., "Schema-validate every request body against the INTERFACES § 6 shape for EP-name at the API gateway before the handler dispatches; reject with ERR_BAD_REQUEST on any field-level failure."}`
-- **Implementation location:** `{ComponentName from ARCHITECTURE § 2}` (owned by `U-{NN}` from WORK_UNITS.md, or `(unit unknown — surfaced in § 16)`)
+- **Implementation location:** `{ComponentName from ARCHITECTURE § 2}` (owned by `u<NN>` from `units/<area>/u<NN>/`, or `(unit unknown — surfaced in § 16)`)
 - **Verification:** `{automated test / manual audit / code review / penetration test — name the specific check}`
 - **Dependencies:** `{libraries, services, config vars — name primitives only, not product choices}`
 

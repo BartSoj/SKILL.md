@@ -85,7 +85,7 @@ Every actor here should feel like a stakeholder in § 1 Problem Statement. If a 
 
 Draft § 7, § 8, and § 9.
 
-**§ 7 Scope Boundaries.** What is and is not in the first milestone, phrased as capabilities (not features). "In scope: accepting authenticated pushes, fetching public repositories over HTTPS, enumerating references. Out of scope: branch protection rules, pull requests, issue tracking." This anchors downstream scoping decisions; `/use-cases` will expand the in-scope list into concrete use cases and `/WORK_UNITS.md` will budget them into work units.
+**§ 7 Scope Boundaries.** What is and is not in the first milestone, phrased as capabilities (not features). "In scope: accepting authenticated pushes, fetching public repositories over HTTPS, enumerating references. Out of scope: branch protection rules, pull requests, issue tracking." This anchors downstream scoping decisions; `/use-cases` will expand the in-scope list into concrete use cases that, once design phases A–F complete, become the basis for trigger artifacts in `roadmap/` driving the per-trigger implementation pipeline.
 
 Scope boundaries are not non-goals. Non-goals (§ 4) are things we will never build or will deliberately not build. Scope boundaries are things we will build eventually but are out of the first milestone.
 
@@ -347,7 +347,7 @@ open_questions: {N}
 - Threat modelling, security controls — owned by `/security`
 - Deployment, runbooks, config catalogue — owned by `/operations`
 - UI surfaces — owned by IA skills (`/web-ia`, `/cli-ia`, `/mobile-ia`, `/tui-ia`, `/voice-ia`)
-- Per-unit specs, plans, implementations — owned by `/WORK_UNITS.md` and the per-unit pipeline
+- Per-unit specs, plans, implementations — owned by the per-unit pipeline (`/SPEC.md` through `/RECONCILIATION.md`) under `units/<area>/u<NN>/`
 
 ---
 

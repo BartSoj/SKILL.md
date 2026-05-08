@@ -9,7 +9,7 @@ description: Design the system architecture — architectural style, component i
 
 Produce an ARCHITECTURE.md that serves as the structural blueprint for the system: what components exist, what each is responsible for, how they connect, what technology each uses, which foundational decisions were made and why, and what shape the deployment takes. The document fixes the architectural *style*, inventories every component with its responsibility and deployable form, draws the topology, walks every cross-cutting scenario as a cross-component flow, indexes every architectural decision (`D-NNN`) — each one resolved as a side-output `decisions/D-{NNN}-{slug}/DECISION.md` file — sketches deployment at a 1–2-page level, names system-level quality-attribute headlines, calls out evolution seams and out-of-scope structural choices, and points readers at the sister artifacts that own surface-level detail. An agent reading this document alone can place any downstream concern (a new endpoint, a new schema, a new surface, a new component) into the correct structural slot without guessing — and can explain *why* the shape is what it is.
 
-ARCHITECTURE.md is produce-once and read-many: every IA skill, `/interfaces`, `/data`, `/behavior`, `/quality`, `/security`, `/operations`, `/WORK_UNITS.md`, and most `/spec` agents read it. Treat every component name, `D-NNN` ID, and flow as a permanent commitment. The defining rule — and the commonest violation — is **structure, not surface**: this document owns *what components exist and why*, allows targeted concrete mentions where they make a structural responsibility specific, but never enumerates the wire formats, schemas, UI inventories, state machines, error taxonomies, or detailed ops that sibling artifacts own.
+ARCHITECTURE.md is produce-once and read-many: every IA skill, `/interfaces`, `/data`, `/behavior`, `/quality`, `/security`, `/operations`, and most per-unit `/SPEC.md` agents read it. Treat every component name, `D-NNN` ID, and flow as a permanent commitment. The defining rule — and the commonest violation — is **structure, not surface**: this document owns *what components exist and why*, allows targeted concrete mentions where they make a structural responsibility specific, but never enumerates the wire formats, schemas, UI inventories, state machines, error taxonomies, or detailed ops that sibling artifacts own.
 
 ---
 
@@ -498,7 +498,7 @@ sequenceDiagram
 - Threat model, per-actor auth flows, authorisation matrix, security controls — owned by `/security`
 - Runbooks, config variable catalogue, CI/CD, backup / restore, on-call, capacity planning — owned by `/operations`
 - Error taxonomy, error codes, error categories — owned by `/errors`
-- Per-unit specs, plans, implementations — owned by `/WORK_UNITS.md` and the per-unit pipeline
+- Per-unit specs, plans, implementations — owned by the per-unit pipeline (`/SPEC.md` through `/RECONCILIATION.md`) under `units/<area>/u<NN>/`
 - Full glossary, entities, aggregates, value objects, invariants, bounded contexts themselves — owned by `/domain`
 - Use case catalogue, cross-cutting scenario narratives, priority milestones, surface mapping matrix — owned by `/use-cases`
 

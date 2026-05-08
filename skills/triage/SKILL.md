@@ -19,7 +19,7 @@ Given a SYSTEM_VERIFICATION.md (or equivalent failure report) documenting integr
 4. **Unit SPECs** (auto-discovered) — per-unit specifications. Used to trace whether a spec was wrong, incomplete, or correctly specified but incorrectly implemented.
 5. **Unit IMPLEMENTATION.md files** (optional) — implementation records. Used to check whether implementations deviated from their specs.
 6. **Decision documents** (optional) — architectural decisions. Used to understand the rationale behind choices that may have contributed to failures.
-7. **WORK_UNITS.md** (auto-discovered) — work unit decomposition. Used to identify gaps where no unit covers a needed capability.
+7. **`units/<area>/` folder structure** (auto-discovered) — the existing per-area unit catalog. Used to identify gaps where no unit covers a needed capability; missing capabilities become candidates for new triggers (`roadmap/<NNN>-<slug>/ROADMAP.md` or `issues/<NNN>-<slug>/ISSUE.md`).
 
 ---
 
@@ -43,7 +43,7 @@ For each failure:
 | **Contract mismatch** | Client and server disagree on wire format — field names, casing, structure, types | INTERFACES.md missing or incorrect entry; SPEC derived wire format from prose instead of interface contract |
 | **Missing configuration** | Env var, migration, library setup, dev script not present | SPEC for infrastructure/scaffold unit incomplete; ARCHITECTURE.md missing config section |
 | **Logic bug** | Code does the wrong thing despite correct contracts | SPEC was wrong (spec bug) or IMPLEMENTATION deviated from spec (implementation bug) |
-| **Missing feature** | Something needs to exist but was never specified | WORK_UNITS.md gap — no unit covers this capability; ARCHITECTURE.md missing component |
+| **Missing feature** | Something needs to exist but was never specified | No unit covers this capability — file a new `roadmap/<NNN>-<slug>/ROADMAP.md` trigger; ARCHITECTURE.md missing component |
 | **Third-party library** | Library requires setup not documented in architecture | ARCHITECTURE.md or SPEC missing library-specific requirements |
 
 ### Phase 2: Artifact Tracing
@@ -54,11 +54,11 @@ For each failure, identify THE specific artifact that is the root cause — the 
 
 1. **Contract mismatches trace to the interface contract source of truth.** If INTERFACES.md exists but is missing the endpoint → INTERFACES.md is the root cause. If no INTERFACES.md exists → the absence of a shared interface contract is the root cause. If INTERFACES has the correct entry but a SPEC ignored it → the SPEC is the root cause.
 
-2. **Missing configuration traces to the owning unit's SPEC.** Every piece of infrastructure (env loading, migration scripts, docker-compose config) should be owned by a unit. If the SPEC doesn't mention it, the SPEC is incomplete. If no unit owns it, WORK_UNITS.md has a gap.
+2. **Missing configuration traces to the owning unit's SPEC.** Every piece of infrastructure (env loading, migration scripts, docker-compose config) should be owned by a unit. If the SPEC doesn't mention it, the SPEC is incomplete. If no unit owns it, file a new `roadmap/<NNN>-<slug>/ROADMAP.md` trigger and surface the gap.
 
 3. **Logic bugs trace to either SPEC or IMPLEMENTATION.** Read the SPEC for the affected unit. If the SPEC correctly describes the expected behavior but the implementation does something different, the implementation is the root cause. If the SPEC itself describes wrong behavior, the SPEC is the root cause.
 
-4. **Missing features trace to WORK_UNITS.md or ARCHITECTURE.md.** If the feature should exist but no unit covers it, WORK_UNITS.md has a decomposition gap. If the feature isn't mentioned anywhere in the architecture, ARCHITECTURE.md has a gap.
+4. **Missing features trace to a new trigger or to ARCHITECTURE.md.** If the feature should exist but no unit covers it, propose a new `roadmap/<NNN>-<slug>/ROADMAP.md` (or `issues/<NNN>-<slug>/ISSUE.md` for a regression). If the feature isn't mentioned anywhere in the architecture, ARCHITECTURE.md has a gap.
 
 5. **Third-party library issues trace to ARCHITECTURE.md or the unit SPEC.** If the architecture documents the library but omits a critical configuration requirement, ARCHITECTURE.md is the root cause. If the architecture mentions the requirement but the SPEC doesn't include it, the SPEC is the root cause.
 
@@ -265,7 +265,7 @@ After the artifact updates above are applied:
 - Fixing code or modifying implementations — triage identifies what to fix in design artifacts, the pipeline handles code changes
 - Running the system or performing verification — SYSTEM_VERIFICATION handles that
 - Updating the artifacts directly — the human applies the triage recommendations
-- Creating new work units — if WORK_UNITS.md has gaps, triage reports the gap; the human updates the work unit decomposition
+- Filing new triggers — if there's a capability gap or a newly discovered defect with no immediate fix, triage proposes a new `roadmap/<NNN>-<slug>/ROADMAP.md` or `issues/<NNN>-<slug>/ISSUE.md` (the orchestrator dispatches `/ROADMAP.md` or `/ISSUE.md` to file it)
 
 ---
 

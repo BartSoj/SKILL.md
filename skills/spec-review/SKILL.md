@@ -1,13 +1,13 @@
 ---
 name: SPEC_REVIEW.md
-description: Gate the unit SPEC before PLAN — read the WORK_UNITS unit entry, the SPEC end-to-end, the unit's declared design read-set, every dependency unit's SPEC, and the codebase, then dispatch four parallel subagents (Scope & Risk Auditor, Compatibility Checker, OSS Library Scout, Internal Quality Reviewer) to surface scope drift, premature deferral, reinvention, convention drift, and empirical gambles, and emit a verdict (`pass`, `fix-required`, or `prototype-needed`) that drives orchestrator branching to PLAN, SPEC regeneration, or PROTOTYPE. Use when asked to review a spec, run a spec review, validate the spec before plan, audit a SPEC.md before implementation, gate the unit before plan, or produce a SPEC_REVIEW.md.
+description: Gate the unit SPEC before PLAN — read the trigger artifact(s) (roadmap or issue), the SPEC end-to-end, the unit's declared design read-set, every related unit's SPEC, and the codebase, then dispatch four parallel subagents (Scope & Risk Auditor, Compatibility Checker, OSS Library Scout, Internal Quality Reviewer) to surface scope drift, premature deferral, reinvention, convention drift, and empirical gambles, and emit a verdict (`pass`, `fix-required`, or `prototype-needed`) that drives orchestrator branching to PLAN, SPEC regeneration, or PROTOTYPE. Use when asked to review a spec, run a spec review, validate the spec before plan, audit a SPEC.md before implementation, gate the unit before plan, or produce a SPEC_REVIEW.md.
 ---
 
 # Task: Generate SPEC_REVIEW.md — Per-Unit Specification Gate
 
 ## Objective
 
-Produce a SPEC_REVIEW.md that serves as the mandatory gate between H1 (`/SPEC.md`) and H2 (`/PLAN.md`) of the Agent-Driven Development per-unit pipeline. It validates a single unit's SPEC against the contract declared in WORK_UNITS, against the design suite the unit cites, against every dependency unit's SPEC, and against the existing codebase, then catalogues every finding under stable `SF-NN` / `CF-NN` / `QF-NN` / `R-NN` IDs with severity, evidence, and a proposed actionable edit, and emits a machine-readable verdict (`pass`, `fix-required`, or `prototype-needed`) that the orchestrator branches on. An agent reading this document alone can — without re-opening the SPEC, the design read-set, or any dependency SPEC — tell whether the pipeline may proceed to PLAN, must regenerate the SPEC with this review as additional input, or must first run the conditional H1.6 PROTOTYPE step to empirically validate risky assumptions.
+Produce a SPEC_REVIEW.md that serves as the mandatory gate between G1 (`/SPEC.md`) and G4 (`/PLAN.md`) of the Agent-Driven Development per-unit pipeline. It validates a single unit's SPEC against the contract declared in the trigger artifact(s) (`roadmap/<NNN>-<slug>/ROADMAP.md` or `issues/<NNN>-<slug>/ISSUE.md`), against the design suite the unit cites, against every related unit's SPEC, and against the existing codebase, then catalogues every finding under stable `SF-NN` / `CF-NN` / `QF-NN` / `R-NN` IDs with severity, evidence, and a proposed actionable edit, and emits a machine-readable verdict (`pass`, `fix-required`, or `prototype-needed`) that the orchestrator branches on. An agent reading this document alone can — without re-opening the SPEC, the design read-set, or any related-unit SPEC — tell whether the pipeline may proceed to PLAN, must regenerate the SPEC with this review as additional input, or must first run the conditional G3 PROTOTYPE step to empirically validate risky assumptions.
 
 SPEC_REVIEW.md exists because every other ADD review gate catches a different category of failure — DESIGN_REVIEW catches cross-artifact contradictions in the design suite, CODE_REVIEW catches issues in implementation — but the SPEC itself, the one consequential intermediate artifact between design and code, had no review gate. Real-world testing of the pipeline surfaced five recurring failure modes the SPEC author silently propagates downstream: **scope drift** (the SPEC implements less than the unit definition calls for), **premature deferral** (the SPEC defers work to "future units" or to PLAN/IMPLEMENT that has no actual home elsewhere), **reinvention** (the SPEC prescribes custom logic where a well-known open-source library already solves the problem), **convention drift** (the SPEC prescribes a filename, package shape, or naming pattern that contradicts framework documentation or existing monorepo packages), and **empirical gambles** (the SPEC makes implementation decisions that depend on unverified assumptions about library behavior, runtime semantics, or external system shapes). The defining discipline — and the commonest violation — is that **the verdict field follows `blocking_findings` and `risk_items` mechanically with no subjective override**. A reviewer who believes a blocking finding is acceptable downgrades the finding's severity, with justification, rather than overrides the verdict. A reviewer who is uncertain whether an assumption is empirical or document-verifiable resolves the question in Phase 1 — not by inflating R-NN.
 
@@ -15,16 +15,16 @@ SPEC_REVIEW.md exists because every other ADD review gate catches a different ca
 
 ## Inputs
 
-1. **WORK_UNITS.md unit entry** (required) — the entry for this unit (declared scope in/out, dependencies, files touched, declared SPEC read-set). This is the contract the SPEC must satisfy. Every `SF-NN` finding anchors to a verbatim quote of an "in scope" or "out of scope" bullet from this entry.
-2. **SPEC.md** (required, primary subject) — the document being reviewed. Path is typically `add/U<NN>/SPEC.md`. Read end-to-end.
-3. **The unit's declared design read-set** (required) — the design artifacts the SPEC was supposed to cite, as declared in WORK_UNITS for this unit. Subset of DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, ERRORS, QUALITY, SECURITY, USE_CASES, surface IAs. Used both for citation validation (every `INV-NN`, `EP-name`, `EVT-name`, `ERR_CODE`, `SM-*`, `SAGA-*`, `METRIC-*`, `SLO-*`, `THREAT-NN`, `MIT-NN`, `UC-NN`, `ADR-NN` cited by the SPEC must resolve in the corresponding registry) and for cross-checking that the SPEC's claims are consistent with the design.
-4. **Dependency unit SPEC.md files** (required, auto-discovered) — the SPECs of every unit this unit depends on. Discovery: walk the dependency list in the WORK_UNITS entry for this unit and load each dependency's SPEC.md from `add/U<NN>/SPEC.md`. Used to verify that the SPEC consumes the dependencies correctly — exact exported names, exact function signatures, exact field names. Read end-to-end; truncated reads on dependencies cause silent signature drift.
+1. **Trigger artifact(s)** (required) — one or more `roadmap/<NNN>-<slug>/ROADMAP.md` (planned work) and/or `issues/<NNN>-<slug>/ISSUE.md` (defects in shipped code) that initiated this unit. These declare what the unit must deliver, its acceptance criteria, and its area. Combined with the unit's SPEC frontmatter (declared by the orchestrator: `area`, `files`, `concepts`, `depends_on`, `supersedes`, `related`), they form the contract the SPEC must satisfy. Every `SF-NN` finding anchors to a verbatim quote of a requirement from the trigger body or a frontmatter scope element.
+2. **SPEC.md** (required, primary subject) — the document being reviewed. Path is `units/<area>/u<NN>/SPEC.md`. Read end-to-end, including frontmatter.
+3. **The unit's declared design read-set** (required) — the design artifacts the SPEC was supposed to cite, supplied by the orchestrator at invocation time per the unit's scope. Subset of DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, ERRORS, QUALITY, SECURITY, USE_CASES, surface IAs. Used both for citation validation (every `INV-NN`, `EP-name`, `EVT-name`, `ERR_CODE`, `SM-*`, `SAGA-*`, `METRIC-*`, `SLO-*`, `THREAT-NN`, `MIT-NN`, `UC-NN`, `D-NNN` cited by the SPEC must resolve in the corresponding registry) and for cross-checking that the SPEC's claims are consistent with the design.
+4. **Related unit SPEC.md files** (required, supplied by orchestrator) — the SPECs of units this unit depends on, supersedes, or is otherwise related to (orchestrator-discovered via the unit's frontmatter `depends_on` / `supersedes` / `related` plus area peers in `units/<area>/`). Each lives at `units/<area>/u<NN>/SPEC.md`. Used to verify that the SPEC consumes the dependencies correctly — exact exported names, exact function signatures, exact field names. Read end-to-end; truncated reads on dependencies cause silent signature drift.
 5. **Existing codebase** (required, accessed via Grep, Glob, and Read) — for compatibility checks. The skill greps and reads files to verify SPEC claims about filename conventions, package shapes, framework patterns, existing types, and existing functions in the monorepo.
 6. **Project guideline files** (auto-discovered) — `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, `.editorconfig`, and any linter configuration files at the repository root. These are the convention authorities that override default framework conventions when they conflict.
 7. **Web** (accessed via WebSearch and WebFetch) — for library and framework documentation, OSS alternatives, RFCs, package registries (NPM, crates.io, PyPI, etc.), and breaking-change history.
 8. **Issues and roadmap** (required, auto-discovered) — `issues/*/ISSUE.md` and `roadmap/*.md` files at the repository root. Used to verify whether items the SPEC defers to "future work" genuinely have a home elsewhere or are phantom deferrals.
 
-Read-set size: 1 WORK_UNITS entry + 1 SPEC + 4–7 design artifacts + 1–4 dependency SPECs + tool reads (codebase, web, issues, roadmap). Within ADD's 10-artifact budget. Read every required input end-to-end before launching subagents — truncated reads produce phantom findings (a `QF-NN` claiming "INV-12 is uncited" when INV-12 appears on a line that was cut off).
+Read-set size: 1–3 trigger artifacts + 1 SPEC + 4–7 design artifacts + 1–4 related-unit SPECs + tool reads (codebase, web, issues, roadmap). Within ADD's 10-artifact budget. Read every required input end-to-end before launching subagents — truncated reads produce phantom findings (a `QF-NN` claiming "INV-12 is uncited" when INV-12 appears on a line that was cut off).
 
 ---
 
@@ -47,14 +47,14 @@ The working index does not appear in the output directly; it feeds every Phase 2
 
 Also read project guideline files (`CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, linter configs). These are passed to every subagent as convention context.
 
-If any required input is missing — the WORK_UNITS unit entry cannot be located, the SPEC at the expected path does not exist, a declared dependency SPEC is absent — stop and emit a SPEC_REVIEW.md with `status: blocked` and `verdict: fix-required` describing exactly which input is missing. Do not invent missing content.
+If any required input is missing — the trigger artifact(s) cannot be located, the SPEC at the expected path does not exist, a related dependency SPEC the orchestrator listed is absent — stop and emit a SPEC_REVIEW.md with `status: blocked` and `verdict: fix-required` describing exactly which input is missing. Do not invent missing content.
 
 ### Phase 2: Parallel Subagent Pass
 
 Launch **four subagents in parallel**, one per analytical lens. Each subagent receives:
 
 - The full SPEC.md content
-- The WORK_UNITS unit entry (verbatim)
+- The trigger artifact(s) (verbatim quote of the requirement and acceptance criteria) and the unit's SPEC frontmatter (`area`, `files`, `concepts`, `depends_on`, `supersedes`, `related`)
 - The unit's declared design read-set (full content)
 - Every dependency unit SPEC (full content)
 - All project guideline file contents
@@ -99,8 +99,8 @@ blocking_findings == 0  AND  risk_items == 0       →  verdict: pass
 
 Then:
 
-- If `verdict: fix-required`, write § 7 Required Changes — group every blocking and high-severity finding by the SPEC section it targets, and list the specific edit the SPEC must make on regeneration. This is the exact instruction set the orchestrator hands to the H1 re-run.
-- If `verdict: prototype-needed`, write § 8 Prototype Brief — consolidate every `R-NN` into a question-driven brief that the H1.6 PROTOTYPE skill consumes. For each: question to answer, what to test, acceptable outcomes, reference materials.
+- If `verdict: fix-required`, write § 7 Required Changes — group every blocking and high-severity finding by the SPEC section it targets, and list the specific edit the SPEC must make on regeneration. This is the exact instruction set the orchestrator hands to the G1 re-run.
+- If `verdict: prototype-needed`, write § 8 Prototype Brief — consolidate every `R-NN` into a question-driven brief that the G3 PROTOTYPE skill consumes. For each: question to answer, what to test, acceptable outcomes, reference materials.
 - If `verdict: pass`, both § 7 and § 8 read as their omission stubs ("No changes required — pipeline may proceed to /PLAN.md." and "No prototype required — risk surface is empty.").
 
 ### Phase 5: Self-Check
@@ -108,7 +108,7 @@ Then:
 Before writing, verify:
 
 - Every finding has severity, a specific SPEC section or quote, an authority or evidence reference, and a proposed-resolution that is an actionable edit (not a vague suggestion).
-- Every `SF-NN` cites a verbatim WORK_UNITS quote and a specific SPEC section.
+- Every `SF-NN` cites a verbatim trigger-requirement quote (or a frontmatter scope element) and a specific SPEC section.
 - Every § 2.1 entry shows a documented search of `issues/` and `roadmap/` confirming no home for the deferred item.
 - Every `CF-NN` cites a specific authority — a framework docs URL, a file path with relevant content, a `package.json` path, or a dependency unit SPEC section.
 - Every § 3.1 entry has a real library name, a link, and an explicit trade-off note.
@@ -120,7 +120,7 @@ Before writing, verify:
 
 ### Phase 6: Frontmatter + Write
 
-Compute counts. Write SPEC_REVIEW.md to `add/U<NN>/SPEC_REVIEW.md`. Set `status: complete` if § 9 reads "All questions resolved.", `has_open_questions` otherwise, `blocked` only when a missing input prevented review (Phase 1 abort).
+Compute counts. Write SPEC_REVIEW.md to `units/<area>/u<NN>/SPEC_REVIEW.md`. Set `status: complete` if § 9 reads "All questions resolved.", `has_open_questions` otherwise, `blocked` only when a missing input prevented review (Phase 1 abort).
 
 ---
 
@@ -149,7 +149,7 @@ blocking_findings == 0  AND  risk_items == 0       →  verdict: pass
 
 ### 3. Stable IDs for findings
 
-`SF-NN`, `CF-NN`, `QF-NN`, `R-NN` are assigned in order of first mention within their section, starting at `01`. IDs are permanent across regenerations of SPEC_REVIEW.md on the same SPEC — if H1.5 re-enters after a SPEC regeneration, the orchestrator may compare finding IDs across runs to confirm that a specific finding was addressed. § 3.1 OSS Alternatives entries are *not* findings and have no ID prefix; they count toward `oss_alternatives_suggested` only.
+`SF-NN`, `CF-NN`, `QF-NN`, `R-NN` are assigned in order of first mention within their section, starting at `01`. IDs are permanent across regenerations of SPEC_REVIEW.md on the same SPEC — if G2 re-enters after a SPEC regeneration, the orchestrator may compare finding IDs across runs to confirm that a specific finding was addressed. § 3.1 OSS Alternatives entries are *not* findings and have no ID prefix; they count toward `oss_alternatives_suggested` only.
 
 ### 4. Risk surface is for empirical-only questions
 
@@ -163,7 +163,7 @@ The review proposes edits the SPEC must make on regeneration; it does not introd
 
 ### 6. If it can be done here, it must be done here
 
-For scope analysis, the default disposition is: if work falls within the unit's natural scope and is not explicitly assigned to another unit's WORK_UNITS entry, an existing `issues/NNN-slug/ISSUE.md`, a `roadmap/slug.md`, or PROPOSAL non-goals, it should be done in this unit. Deferral is the exception, not the default. Items deferred without a documented home become recovered scope (§ 2.1 entries with corresponding `SF-NN` findings).
+For scope analysis, the default disposition is: if work falls within the unit's natural scope (the trigger's requirement plus the unit's frontmatter `files` and `concepts`) and is not explicitly assigned to another unit's SPEC, an existing `issues/<NNN>-<slug>/ISSUE.md`, a `roadmap/<NNN>-<slug>/ROADMAP.md`, or PROPOSAL non-goals, it should be done in this unit. Deferral is the exception, not the default. Items deferred without a documented home become recovered scope (§ 2.1 entries with corresponding `SF-NN` findings).
 
 This rule is the encoding of the most effective scope-drift prompt observed in real-world testing: *"Did you discover anything that should be included in the scope of this issue and spec — either because it was deferred or because it was not included previously but actually more could be done? I want to do as much as possible to have it working as well as possible and not defer anything."*
 
@@ -173,7 +173,7 @@ For every block of custom logic the SPEC prescribes — parsers, validators, sch
 
 ### 8. Every finding cites evidence
 
-Every `SF-NN` quotes the WORK_UNITS unit-entry bullet verbatim. Every `CF-NN` cites a specific authority (framework docs URL, repo file path, dependency SPEC section, `package.json` path, project guideline section). Every `QF-NN` cites the exact SPEC section and the exact phrase or stable ID that is the defect. Every `R-NN` quotes the SPEC location and states why the assumption cannot be verified by reading. Findings with no citation are rejected by the Quality Checklist.
+Every `SF-NN` quotes the trigger requirement (or frontmatter scope element) verbatim. Every `CF-NN` cites a specific authority (framework docs URL, repo file path, dependency SPEC section, `package.json` path, project guideline section). Every `QF-NN` cites the exact SPEC section and the exact phrase or stable ID that is the defect. Every `R-NN` quotes the SPEC location and states why the assumption cannot be verified by reading. Findings with no citation are rejected by the Quality Checklist.
 
 ### 9. Every finding's resolution is actionable
 
@@ -219,29 +219,32 @@ open_questions: {N}
 # SPEC_REVIEW: {U-NN} — {Unit Name}
 
 > Per-unit gate review of `add/{U-NN}/SPEC.md` before `/PLAN.md`. Consumes the
-> WORK_UNITS unit entry, the SPEC end-to-end, the unit's declared design
+> trigger artifact(s), the SPEC end-to-end, the unit's declared design
 > read-set, every dependency unit SPEC, project guidelines, the codebase, web
 > sources, and `issues/` + `roadmap/`. Produces a machine-readable verdict
 > (`pass`, `fix-required`, `prototype-needed`) that the orchestrator branches on.
 
 ## § 1. Review Scope
 
-**WORK_UNITS unit entry (verbatim):**
+**Trigger artifact(s) and unit identity (verbatim):**
 
-> {Quote the entire entry for {U-NN} from WORK_UNITS.md — title, tier, scope in,
-> scope out, dependencies, files touched, declared SPEC read-set, interface
-> summary. This anchors every SF-NN finding to a verifiable source.}
+> {Quote the trigger artifact(s) — `roadmap/<NNN>-<slug>/ROADMAP.md` or
+> `issues/<NNN>-<slug>/ISSUE.md` — including the requirement, acceptance
+> criteria, and any explicit scope statements. Then quote the unit's SPEC
+> frontmatter (`unit`, `area`, `files`, `concepts`, `trigger`, `depends_on`,
+> `supersedes`, `related`). Together these anchor every SF-NN finding to a
+> verifiable source.}
 
 **Inputs reviewed:**
 
 | Artifact | Path | Date | Status (frontmatter) | Read end-to-end? |
 |----------|------|------|----------------------|------------------|
-| SPEC.md (subject) | `add/{U-NN}/SPEC.md` | `{YYYY-MM-DD}` | `{status}` | yes |
-| WORK_UNITS.md | `WORK_UNITS.md` | `{YYYY-MM-DD}` | `{status}` | (unit entry only) |
+| SPEC.md (subject) | `units/{area}/{u<NN>}/SPEC.md` | `{YYYY-MM-DD}` | `{status}` | yes |
+| `{trigger 1}` | `roadmap/<NNN>-<slug>/ROADMAP.md` or `issues/<NNN>-<slug>/ISSUE.md` | `{YYYY-MM-DD}` | `{status}` | yes |
 | `{design artifact 1}` | `{path}` | `{YYYY-MM-DD}` | `{status}` | yes |
 | `{design artifact N}` | `{path}` | `{YYYY-MM-DD}` | `{status}` | yes |
-| `{dependency SPEC 1}` | `add/{U-NN}/SPEC.md` | `{YYYY-MM-DD}` | `{status}` | yes |
-| `{dependency SPEC N}` | `add/{U-NN}/SPEC.md` | `{YYYY-MM-DD}` | `{status}` | yes |
+| `{related-unit SPEC 1}` | `units/{area}/{u<NN>}/SPEC.md` | `{YYYY-MM-DD}` | `{status}` | yes |
+| `{related-unit SPEC N}` | `units/{area}/{u<NN>}/SPEC.md` | `{YYYY-MM-DD}` | `{status}` | yes |
 | Project guidelines | `CLAUDE.md`, `README.md`, `CONTRIBUTING.md` | — | — | yes |
 | Codebase | (Grep / Glob / Read) | — | — | as needed |
 | Web | (WebSearch / WebFetch) | — | — | as needed |
@@ -253,17 +256,17 @@ open_questions: {N}
 
 ## § 2. Scope Findings
 
-Items the SPEC fails to cover from the WORK_UNITS unit entry. Numbered `SF-NN` in the order first surfaced.
+Items the SPEC fails to cover from the trigger requirement(s) or the unit's frontmatter scope (`files`, `concepts`). Numbered `SF-NN` in the order first surfaced.
 
 #### SF-{NN}: {short title}
 
 - **Severity:** `{blocking | high | medium | low}`
-- **WORK_UNITS bullet (verbatim):** `{exact quote of the in-scope or out-of-scope bullet from the unit entry}`
+- **Trigger requirement (verbatim):** `{exact quote of the requirement from the trigger body, or of the relevant frontmatter scope element such as `files: [...]` or `concepts: [...]`}`
 - **What's missing in SPEC:** `{specific file / function / behavior / test absent — name the SPEC section that should contain it}`
 - **Proposed addition:** `{exact edit — e.g., "Add a § 9 file entry for src/auth/middleware.ts with the verifyToken function signature `verifyToken(token: string): Promise<UserClaims>` per the auth dependency SPEC § 6."}`
 - **Blocks:** `{downstream step affected — e.g., "/PLAN.md will produce no plan step for token verification; /implement will skip the middleware; /verify will fail UC-04."}`
 
-(Repeat per finding. If none: "No scope findings — every WORK_UNITS bullet is covered by a SPEC section.")
+(Repeat per finding. If none: "No scope findings — every trigger requirement and frontmatter scope element is covered by a SPEC section.")
 
 ### § 2.1 Deferred Items Recovered
 
@@ -274,7 +277,7 @@ Items the SPEC defers to "future work", "a later unit", or "PLAN/IMPLEMENT" that
 - **SPEC location:** `{section number and quote}`
 - **Search of `issues/`:** `{result — e.g., "No issue under `issues/` mentions {topic}; searched for {keywords}."}`
 - **Search of `roadmap/`:** `{result — e.g., "No roadmap entry mentions {topic}."}`
-- **Search of WORK_UNITS:** `{result — e.g., "No other unit's scope-in bullet covers {topic}; checked U-01 through U-N."}`
+- **Search of `units/<area>/`:** `{result — e.g., "No other unit's SPEC frontmatter or scope covers {topic}; checked all area peers and grepped concepts/files across `units/*/u*/SPEC.md`."}`
 - **Recommendation:** `{exact section and content to add to the SPEC on regeneration}`
 - **Linked finding:** `SF-{NN}`
 
@@ -291,7 +294,7 @@ Mismatches between SPEC claims and an authoritative source — framework docs, m
 - **Severity:** `{blocking | high | medium | low}`
 - **Type:** `{framework convention | monorepo pattern | filename | package shape | dependency signature | API contract | project-guideline mandate}`
 - **SPEC claim (quote):** `{exact quote with section number — e.g., "§ 9 says 'config file at src/config/server.json'"}`
-- **Authority:** `{specific source — e.g., "Next.js docs at https://nextjs.org/docs/... | existing file packages/auth/package.json | dependency SPEC add/U-03/SPEC.md § 6 | CLAUDE.md § 'Configuration conventions'"}`
+- **Authority:** `{specific source — e.g., "Next.js docs at https://nextjs.org/docs/... | existing file packages/auth/package.json | dependency SPEC units/<area>/u-03/SPEC.md § 6 | CLAUDE.md § 'Configuration conventions'"}`
 - **Mismatch:** `{exact contradiction — e.g., "Next.js convention places config at next.config.js (or next.config.ts) at the package root; src/config/server.json is not a Next.js convention."}`
 - **Proposed correction:** `{exact edit — e.g., "Replace § 9 'config file at src/config/server.json' with 'config file at next.config.ts at the package root, exporting a typed NextConfig object per Next.js docs.'"}`
 
@@ -315,7 +318,7 @@ Recommendations for blocks of custom logic in the SPEC where a well-known open-s
 
 ## § 4. Quality Findings
 
-Internal SPEC defects unrelated to the WORK_UNITS contract or external authorities. Numbered `QF-NN`.
+Internal SPEC defects unrelated to the trigger contract or external authorities. Numbered `QF-NN`.
 
 #### QF-{NN}: {short title}
 
@@ -331,7 +334,7 @@ Internal SPEC defects unrelated to the WORK_UNITS contract or external authoriti
 
 ## § 5. Risk Surface
 
-Assumptions in the SPEC that depend on empirical questions — library behavior under load, runtime semantics, integration friction between libraries, performance characteristics, external system shapes — that cannot be answered by reading docs alone. Each `R-NN` is a candidate for the H1.6 PROTOTYPE step. Numbered `R-NN`.
+Assumptions in the SPEC that depend on empirical questions — library behavior under load, runtime semantics, integration friction between libraries, performance characteristics, external system shapes — that cannot be answered by reading docs alone. Each `R-NN` is a candidate for the G3 PROTOTYPE step. Numbered `R-NN`.
 
 #### R-{NN}: {short title}
 
@@ -339,7 +342,7 @@ Assumptions in the SPEC that depend on empirical questions — library behavior 
 - **Assumption:** `{exact statement of what the SPEC implicitly or explicitly assumes}`
 - **Why it cannot be verified by reading:** `{specific reason — e.g., "The Tokio runtime's `spawn_blocking` documents the default thread-pool size but not its behavior when 64+ blocking tasks are queued simultaneously, which is the SPEC's §-7 worst case. We need to run the load to observe queue-eviction behavior."}`
 - **Suggested prototype:** `{one-line scope of what to test — e.g., "Spawn 100 concurrent `spawn_blocking` tasks each sleeping 100ms; measure queue depth and task-completion order over 5 runs."}`
-- **Consequence if assumption is wrong:** `{which downstream step fails and how — e.g., "/implement will produce a handler that drops requests under load; /verify will catch the issue but only after a complete H3 cycle."}`
+- **Consequence if assumption is wrong:** `{which downstream step fails and how — e.g., "/implement will produce a handler that drops requests under load; /verify will catch the issue but only after a complete G5 cycle."}`
 
 (Repeat per risk. If none: "No risks requiring empirical validation — every SPEC assumption is verifiable from documentation, codebase, or dependency SPECs. PROTOTYPE step not needed.")
 
@@ -364,7 +367,7 @@ Grouped by the SPEC section the edit targets. Every item cites the finding ID(s)
 - {specific edit} — per `SF-{NN}` / `CF-{NN}` / `QF-{NN}`
 - {specific edit} — per `{finding-id}`
 
-(Repeat per affected SPEC section. The orchestrator hands this list to the H1 SPEC re-run as additional input.)
+(Repeat per affected SPEC section. The orchestrator hands this list to the G1 SPEC re-run as additional input.)
 
 ---
 
@@ -372,16 +375,16 @@ Grouped by the SPEC section the edit targets. Every item cites the finding ID(s)
 
 (Include this section only if `verdict: prototype-needed`. If `pass` or `fix-required`: write "No prototype required — see § 6 verdict." and omit the rest.)
 
-Consolidated brief for the H1.6 PROTOTYPE skill. Each entry maps one `R-NN` to a self-contained prototype task.
+Consolidated brief for the G3 PROTOTYPE skill. Each entry maps one `R-NN` to a self-contained prototype task.
 
 #### R-{NN}: {short title}
 
 - **Question to answer:** `{single-sentence question — e.g., "How does Tokio's spawn_blocking behave when 100+ blocking tasks are queued simultaneously?"}`
 - **What to test:** `{exact test to run — code shape, inputs, what to measure}`
 - **Acceptable outcomes:** `{the answers that, if observed, settle the assumption — and the answers that invalidate it}`
-- **Reference materials:** `{paths and URLs — e.g., "tokio docs at https://docs.rs/tokio/...; SPEC § 7 worst-case scenario; dependency SPEC add/U-02/SPEC.md § 4 lock-acquisition flow"}`
+- **Reference materials:** `{paths and URLs — e.g., "tokio docs at https://docs.rs/tokio/...; SPEC § 7 worst-case scenario; dependency SPEC units/<area>/u-02/SPEC.md § 4 lock-acquisition flow"}`
 
-(Repeat per `R-NN`. The orchestrator hands this section to the H1.6 PROTOTYPE skill as primary input.)
+(Repeat per `R-NN`. The orchestrator hands this section to the G3 PROTOTYPE skill as primary input.)
 
 ---
 
@@ -403,10 +406,10 @@ Review-level ambiguities only — cases where the reviewer cannot tell whether a
 
 ### In scope
 
-- End-to-end reading of WORK_UNITS unit entry, SPEC.md, declared design read-set, and dependency unit SPECs
+- End-to-end reading of trigger artifact(s), SPEC.md (including frontmatter), declared design read-set, and related-unit SPECs
 - Tool-driven access to the codebase, project guidelines, the web, `issues/`, and `roadmap/`
-- Scope findings under stable `SF-NN` IDs anchored to verbatim WORK_UNITS bullets
-- Deferred-items recovery in § 2.1 with documented searches of `issues/`, `roadmap/`, and other units' WORK_UNITS scope
+- Scope findings under stable `SF-NN` IDs anchored to verbatim trigger requirements (or frontmatter scope elements)
+- Deferred-items recovery in § 2.1 with documented searches of `issues/`, `roadmap/`, and other units in `units/<area>/`
 - Compatibility findings under stable `CF-NN` IDs against framework docs, monorepo patterns, dependency SPECs, and project-guideline mandates
 - OSS-alternative recommendations in § 3.1 with library names, links, and trade-offs
 - Quality findings under stable `QF-NN` IDs covering placeholder language, citation validity, malformed signatures, and decisions deferred to PLAN/IMPLEMENT
@@ -419,12 +422,12 @@ Review-level ambiguities only — cases where the reviewer cannot tell whether a
 
 ### Out of scope
 
-- Authoring or modifying SPEC content — owned by `/SPEC.md` (H1) on regeneration. This review proposes edits; the SPEC skill applies them.
-- Running code to validate empirical assumptions — owned by `/PROTOTYPE.md` (H1.6). This review surfaces the risks; PROTOTYPE settles them.
-- Cross-unit consistency checks within a tier — units in the same tier are independent (ADD invariant); each unit gets its own SPEC_REVIEW.
+- Authoring or modifying SPEC content — owned by `/SPEC.md` (G1) on regeneration. This review proposes edits; the SPEC skill applies them.
+- Running code to validate empirical assumptions — owned by `/PROTOTYPE.md` (G3). This review surfaces the risks; PROTOTYPE settles them.
+- Cross-unit consistency checks across in-flight units — each unit gets its own SPEC_REVIEW; sibling units' SPECs are not modified by this review.
 - Whole-system design consistency — owned by `/DESIGN_REVIEW.md` (F).
-- Implementation correctness — owned by `/CODE_REVIEW.md` (H4).
-- Acceptance verification against the SPEC scenarios — owned by `/VERIFICATION.md` (H5).
+- Implementation correctness — owned by `/CODE_REVIEW.md` (G6).
+- Acceptance verification against the SPEC scenarios — owned by `/VERIFICATION.md` (G7).
 - Resolving the SPEC's own open questions — owned by the cross-cutting `/decide` skill before this review runs. Review-level ambiguities surface in § 9 instead.
 - Bulk web research beyond the OSS-alternative scout — the OSS Library Scout is the only subagent tasked with broad web search; the others use the web only for citation verification.
 
@@ -440,11 +443,11 @@ Before considering SPEC_REVIEW.md complete, verify:
 - [ ] § 9 Open Questions is present (empty with "All questions resolved." or with genuine review-level ambiguities only — distinct from the SPEC's own open questions)
 - [ ] Output is self-contained — readable and actionable without re-opening the SPEC, the design read-set, or any dependency SPEC
 - [ ] All nine sections § 1 through § 9 are present with their exact headings (§ 7 contains its omission stub when verdict is `pass` or `prototype-needed`; § 8 contains its omission stub when verdict is `pass` or `fix-required`; § 5 contains its empty-state line when no risks)
-- [ ] § 1 Review Scope quotes the WORK_UNITS unit entry verbatim and lists every artifact read with paths, dates, and status
+- [ ] § 1 Review Scope quotes the trigger artifact(s) and the unit's SPEC frontmatter verbatim, and lists every artifact read with paths, dates, and status
 - [ ] All four subagents (Scope & Risk Auditor, Compatibility Checker, OSS Library Scout, Internal Quality Reviewer) were launched in parallel and all four completed
 - [ ] Phase 3 cross-validation deduplicated overlapping findings and resolved OSS / risk and scope / risk overlap
-- [ ] Every `SF-NN` cites a verbatim WORK_UNITS unit-entry bullet and names a specific SPEC section that should contain the missing content
-- [ ] Every § 2.1 entry shows documented searches of `issues/`, `roadmap/`, and WORK_UNITS confirming no home for the deferred item
+- [ ] Every `SF-NN` cites a verbatim trigger requirement (or frontmatter scope element) and names a specific SPEC section that should contain the missing content
+- [ ] Every § 2.1 entry shows documented searches of `issues/`, `roadmap/`, and `units/<area>/` confirming no home for the deferred item
 - [ ] Every `CF-NN` cites a specific authority (framework docs URL, file path, dependency SPEC section, project guideline section) and names the exact mismatch
 - [ ] Every § 3.1 entry has a real library name, a link, an explicit trade-off note, and a `replace | augment | keep custom` recommendation — no severity, no `CF-NN` ID
 - [ ] Every `QF-NN` names the exact phrase, stable ID, or signature that is the defect (no "vague language" findings without naming the phrase)

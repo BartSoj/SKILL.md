@@ -201,12 +201,13 @@ Each subsection lists the ordered probes for one pair. Every hit produces a `CF-
 
 Apply each sub-section to the design suite with the named downstream consumer in mind. Each gap produces an `MF-NN` finding citing the failing step.
 
-### For `/WORK_UNITS.md` (next step after `pass`)
+### For continuous per-trigger work (begins after `pass`)
 
-- Every DOMAIN aggregate has enough responsibility detail in DOMAIN § 4 for `/WORK_UNITS.md` to assign it to a unit — thin aggregates (name + one line) are `MF` high.
+- Every DOMAIN aggregate has enough responsibility detail in DOMAIN § 4 for a per-trigger `/SPEC.md` to scope a unit against it — thin aggregates (name + one line) are `MF` high.
 - ARCHITECTURE § 2 names a component per bounded context — components missing for contexts that will need independent deployment are `MF` blocking.
-- Every `EP-name` has explicit idempotency, rate-limit, and auth fields — incomplete endpoint spec produces wrong unit boundaries.
-- Every `SAGA-name` has step list and compensation — sagas with only a description are `MF` blocking (work-unit decomposition cannot assign steps to units).
+- DOMAIN's bounded-context catalog is explicit and stable — these contexts become the area folders for `units/<area>/u<NN>/`; missing or unclear contexts force the orchestrator to invent area names.
+- Every `EP-name` has explicit idempotency, rate-limit, and auth fields — incomplete endpoint spec forces SPEC authors to invent contract details.
+- Every `SAGA-name` has step list and compensation — sagas with only a description are `MF` blocking (per-unit SPECs cannot derive their behavioral contract).
 
 ### For `/spec` (per-unit)
 

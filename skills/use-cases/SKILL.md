@@ -7,7 +7,7 @@ description: Enumerate every user-perspective capability of the system — actor
 
 ## Objective
 
-Produce a USE_CASES.md that enumerates every use case an actor can perform in the system, grouped by actor and priority, plus the cross-cutting end-to-end scenarios that weave multiple use cases together. The document answers five questions: who uses the system, what each actor needs to do, which stories span multiple capabilities, how use cases map to surfaces (web, CLI, mobile, TUI, voice), and which are in v1 versus deferred. Every downstream surface IA skill, `/domain`, `/architecture`, `/WORK_UNITS.md`, and `/system-verify` reads this file to derive its own inventory — orphan use cases and undeclared surfaces cause cascading modelling errors later.
+Produce a USE_CASES.md that enumerates every use case an actor can perform in the system, grouped by actor and priority, plus the cross-cutting end-to-end scenarios that weave multiple use cases together. The document answers five questions: who uses the system, what each actor needs to do, which stories span multiple capabilities, how use cases map to surfaces (web, CLI, mobile, TUI, voice), and which are in v1 versus deferred. Every downstream surface IA skill, `/domain`, `/architecture`, every per-unit `/SPEC.md`, and `/system-verification` reads this file to derive its own inventory — orphan use cases and undeclared surfaces cause cascading modelling errors later.
 
 USE_CASES.md is produce-once and read-many. Stable `UC-NN` IDs assigned here are cited everywhere: entities and aggregates in DOMAIN.md trace back to use cases, per-surface IAs filter the surface matrix to generate their pages/commands/screens, and `/system-verify` derives its scenario list from § 3 Cross-Cutting Scenarios. Treat every `UC-NN` ID as permanent — never renumber, never silently drop.
 
@@ -334,7 +334,7 @@ open_questions: {N}
 - Threat modelling, security controls — owned by `/security`
 - Deployment, runbooks, config catalogue — owned by `/operations`
 - Per-surface inventories (pages, commands, screens, views, intents) — owned by IA skills (`/web-ia`, `/cli-ia`, `/mobile-ia`, `/tui-ia`, `/voice-ia`), derived by filtering § 5's surface column
-- Per-unit specs, plans, implementations — owned by `/WORK_UNITS.md` and the per-unit pipeline
+- Per-unit specs, plans, implementations — owned by the per-unit pipeline (`/SPEC.md` through `/RECONCILIATION.md`) under `units/<area>/u<NN>/`
 
 ---
 

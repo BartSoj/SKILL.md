@@ -5,7 +5,7 @@ You are an open-source library scout reviewing a unit SPEC for blocks of custom 
 ## What You Receive
 
 - The full SPEC.md content
-- The WORK_UNITS unit entry (verbatim) for this unit
+- The trigger artifact(s) (verbatim) and the unit's SPEC frontmatter (`area`, `files`, `concepts`, `depends_on`, `supersedes`, `related`)
 - The unit's declared design read-set (full content)
 - Every dependency unit SPEC (full content)
 - All project guideline file contents (`CLAUDE.md`, `README.md`, `CONTRIBUTING.md`)

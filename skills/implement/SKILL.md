@@ -17,7 +17,7 @@ The defining discipline — and the commonest violation — is **tests first, gr
 
 1. **Implementation plan** (required) — the source of truth for what to build and in what order. Usually a `PLAN.md` in the repo; may also be a document or direct user input. Task ordering, verification criteria, and interface definitions come from here.
 2. **Existing codebase** (required, auto-discovered) — the current state of the repository. Discovered from the working directory. The plan may reference or build upon existing files; read them before writing.
-3. **Work-unit identifier** (optional) — the `U-NN` the plan belongs to, if the project is split into work units. Auto-discovered from the plan's frontmatter or from a parent `WORK_UNITS.md`. Used in the output frontmatter's `unit` field.
+3. **Unit identifier** (optional) — the `u<NN>` the plan belongs to, if the project organises work in `units/<area>/u<NN>/`. Auto-discovered from the plan's frontmatter or from the unit folder path. Used in the output frontmatter's `unit` field.
 4. **Upstream artifacts** (optional, auto-discovered) — `DOMAIN.md`, `INTERFACES.md`, `BEHAVIOR.md`, or sibling `SPEC.md`s referenced by the plan. Read on demand when the plan cites them; do not pre-load everything.
 
 ---

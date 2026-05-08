@@ -9,7 +9,7 @@ description: Model the domain — ubiquitous language, bounded contexts, entitie
 
 Produce a DOMAIN.md that serves as the single source of truth for the system's domain layer at the concept level, independent of technology and UI. It merges what older guidance split as GLOSSARY + DOMAIN_MODEL: in Agent-Driven Development those two are always read together, so they live in one file. DOMAIN.md fixes the ubiquitous language (every term, one canonical definition), enumerates bounded contexts and their integration patterns, models entities/aggregates/value objects, names domain events (meaning only — wire schemas live in INTERFACES.md), lists domain services, and indexes every invariant with a stable `INV-NN` ID. An agent reading this document alone can speak the domain precisely — using the right terms, knowing which aggregate owns which invariant, and knowing which events exist and what they mean — without guessing or drifting from the vocabulary.
 
-DOMAIN.md is the most-read artifact downstream in the ADD workflow (`/architecture`, every IA skill, `/interfaces`, `/data`, `/behavior`, `/security`, `/WORK_UNITS.md`, every `/spec` reads it). Treat every decision in this document as a commitment that propagates everywhere.
+DOMAIN.md is the most-read artifact downstream in the ADD workflow (`/architecture`, every IA skill, `/interfaces`, `/data`, `/behavior`, `/security`, every per-unit `/SPEC.md` reads it). The bounded contexts enumerated in this document also define the area catalog used by `units/<area>/u<NN>/`. Treat every decision in this document as a commitment that propagates everywhere.
 
 ---
 

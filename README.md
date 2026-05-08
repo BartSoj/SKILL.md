@@ -18,8 +18,9 @@ ADD treats every step of the software development process as **a stateless AI-ag
 - **Files are the only communication channel.** If it isn't in an artifact, it doesn't exist for the next step.
 - **Every skill produces exactly one artifact.** Scope is bounded by what one agent can consume and produce.
 - **Context budget is real.** Each step reads ≤ 10 artifacts; each artifact is ≤ 2000 lines (typical 500–1500).
-- **Stable IDs cross-link artifacts.** `UC-NN`, `INV-NN`, `EP-name`, `ERR_CODE`, `SM-*`, `SAGA-*`, `THREAT-NN`, `U-NN` — assigned once, never renumbered.
-- **Open questions are surfaced, not hidden.** Every artifact has an Open Questions section that the orchestrator resolves before handoff.
+- **Stable IDs cross-link artifacts.** `UC-NN`, `INV-NN`, `EP-name`, `ERR_CODE`, `SM-*`, `SAGA-*`, `THREAT-NN`, `D-NNN`, `u<NN>` — assigned once, never renumbered.
+- **Two operating modes.** *Bootstrap* (phases A–F) produces the design suite from initial intent, run once. *Continuous* (phase G, on demand) drives ongoing implementation per trigger; *system verification* (phase H) runs on demand.
+- **Open questions are surfaced, not hidden.** Every artifact has an Open Questions section that the orchestrator resolves before handoff via `/DECISION.md`.
 - **Feedback by regeneration.** Problems send you back to an earlier skill with extra context, not into edit loops.
 
 ## Skills by Phase
@@ -36,7 +37,7 @@ ADD treats every step of the software development process as **a stateless AI-ag
 | Skill | Produces | What it does |
 |-------|----------|--------------|
 | `/DOMAIN.md` | `DOMAIN.md` | Consolidated domain layer — glossary, bounded contexts, entities, aggregates, value objects, domain events, and `INV-NN` invariants |
-| `/ARCHITECTURE.md` | `ARCHITECTURE.md` | Structural blueprint — components, cross-component flows, technology choices, and foundational `ADR-NN`s |
+| `/ARCHITECTURE.md` | `ARCHITECTURE.md` | Structural blueprint — components, cross-component flows, technology choices, and foundational `D-NNN` decisions |
 
 ### Phase C — Surfaces (one per human-facing channel, if any)
 
@@ -52,11 +53,11 @@ ADD treats every step of the software development process as **a stateless AI-ag
 
 | Skill | Produces (per item, when warranted) |
 |-------|--------------------------------------|
-| `/PAGE_SPEC.md` | `add/web-pages/<page-id>/PAGE_SPEC.md` — deep web-page composition: layout, action placement, state-specific layouts, motion |
-| `/SCREEN_SPEC.md` | `add/mobile-screens/<screen-id>/SCREEN_SPEC.md` — deep mobile-screen composition: gestures, orientation, platform variations |
-| `/VIEW_SPEC.md` | `add/tui-views/<view-id>/VIEW_SPEC.md` — deep TUI-view composition: panels, modes, keybindings, capability degradation |
-| `/INTENT_SPEC.md` | `add/voice-intents/<intent-id>/INTENT_SPEC.md` — deep voice-intent composition: utterance library, dialog flow, multimodal expansion |
-| `/COMMAND_SPEC.md` | `add/cli-commands/<cmd-id>/COMMAND_SPEC.md` — deep CLI-command composition: output modes, signal handling, capability degradation (rarest of the family) |
+| `/PAGE_SPEC.md` | `web-pages/<page-id>/PAGE_SPEC.md` — deep web-page composition: layout, action placement, state-specific layouts, motion |
+| `/SCREEN_SPEC.md` | `mobile-screens/<screen-id>/SCREEN_SPEC.md` — deep mobile-screen composition: gestures, orientation, platform variations |
+| `/VIEW_SPEC.md` | `tui-views/<view-id>/VIEW_SPEC.md` — deep TUI-view composition: panels, modes, keybindings, capability degradation |
+| `/INTENT_SPEC.md` | `voice-intents/<intent-id>/INTENT_SPEC.md` — deep voice-intent composition: utterance library, dialog flow, multimodal expansion |
+| `/COMMAND_SPEC.md` | `cli-commands/<cmd-id>/COMMAND_SPEC.md` — deep CLI-command composition: output modes, signal handling, capability degradation (rarest of the family) |
 
 ### Phase D — Contracts & Data
 
@@ -79,30 +80,37 @@ ADD treats every step of the software development process as **a stateless AI-ag
 
 | Skill | Produces | What it does |
 |-------|----------|--------------|
-| `/DESIGN_REVIEW.md` | `DESIGN_REVIEW.md` | Gate review — cross-artifact consistency, completeness, internal quality. Emits `verdict: pass / fix-required` |
+| `/DESIGN_REVIEW.md` | `DESIGN_REVIEW.md` | Gate review — cross-artifact consistency, completeness, internal quality. Emits `verdict: pass / fix-required`. Re-runs whenever `/RECONCILIATION.md` applies major top-level edits during continuous work |
 
-### Phase G — Decomposition
+### Phase G — Per-trigger implementation
 
-| Skill | Produces | What it does |
-|-------|----------|--------------|
-| `/WORK_UNITS.md` | `WORK_UNITS.md` | Splits the design into the smallest independently-implementable units (≤ 400 LOC, ≤ 10 tests, ≤ 6 files, 1 concept) organised into a tiered dependency DAG |
-
-### Phase H — Per-unit pipeline
+Phase G runs continuously, once per trigger. The orchestrator picks up a roadmap item or issue, allocates a unit in `units/<area>/u<NN>/`, and runs G1–G8.
 
 | Skill | Produces | What it does |
 |-------|----------|--------------|
-| `/SPEC.md` | `add/U<NN>/SPEC.md` | Implementation-complete specification of one work unit, citing domain, interfaces, behavior, errors, data |
-| `/PLAN.md` | `add/U<NN>/PLAN.md` | Step-by-step build guide with codebase context |
-| `/IMPLEMENTATION.md` | `add/U<NN>/IMPLEMENTATION.md` | Execute the plan via TDD, commit, document deviations |
-| `/CODE_REVIEW.md` | `add/U<NN>/CODE_REVIEW.md` | Multi-subagent review — security, bugs, quality, contract conformance, test coverage, historical context |
-| `/VERIFICATION.md` | `add/U<NN>/VERIFICATION.md` | QA-test the running feature; capture evidence; verify mock fidelity against INTERFACES |
+| `/SPEC.md` | `units/<area>/u<NN>/SPEC.md` | Implementation-complete specification of one unit, citing domain, interfaces, behavior, errors, data; frontmatter declares `area`, `files`, `concepts`, `trigger`, `supersedes`, `depends_on`, `related` |
+| `/SPEC_REVIEW.md` | `units/<area>/u<NN>/SPEC_REVIEW.md` | Validates the SPEC against trigger requirement and frontmatter scope; emits `verdict: pass / fix-required / prototype-needed` |
+| `/PROTOTYPE.md` | `units/<area>/u<NN>/PROTOTYPE.md` *(conditional)* | Empirically resolves SPEC_REVIEW risks via scratch code in `units/<area>/u<NN>/prototype/` |
+| `/PLAN.md` | `units/<area>/u<NN>/PLAN.md` | Step-by-step build guide with codebase context |
+| `/IMPLEMENTATION.md` | `units/<area>/u<NN>/IMPLEMENTATION.md` | Execute the plan via TDD, commit, document deviations |
+| `/CODE_REVIEW.md` | `units/<area>/u<NN>/CODE_REVIEW.md` | Multi-subagent review — security, bugs, quality, contract conformance, test coverage, historical context |
+| `/VERIFICATION.md` | `units/<area>/u<NN>/VERIFICATION.md` | QA-test the running feature; capture evidence; verify mock fidelity against INTERFACES and trigger acceptance criteria |
+| `/RECONCILIATION.md` | `units/<area>/u<NN>/RECONCILIATION.md` | After VERIFICATION passes, applies edits to the unit's SPEC, selected top-level design artifacts, the trigger artifact's frontmatter (status, `promoted_to_units`), and any peer units' `superseded_by` reciprocity |
 
-### Phase I — System verification & stabilization
+### Phase H — System verification (on demand)
 
 | Skill | Produces | What it does |
 |-------|----------|--------------|
 | `/SYSTEM_VERIFICATION.md` | `SYSTEM_VERIFICATION.md` | Bootstrap the full stack; run cross-cutting end-to-end scenarios |
-| `/TRIAGE.md` | `TRIAGE.md` | Trace system failures to originating artifacts; emit ordered fix batches with pipeline re-entry plan |
+| `/TRIAGE.md` | `TRIAGE.md` | Trace system failures to originating artifacts; emit ordered fix batches with pipeline re-entry plan; file new `issues/` for newly discovered defects |
+
+### Cross-cutting (any phase, any time)
+
+| Skill | Produces | What it does |
+|-------|----------|--------------|
+| `/DECISION.md` | `decisions/D-NNN-<slug>/DECISION.md` | Resolves an Open Question from any artifact; reads the source artifact + 1–4 cited artifacts; one decision per directory |
+| `/ROADMAP.md` | `roadmap/<NNN>-<slug>/ROADMAP.md` | Files a planned item (feature / refinement / refactor / chore) — becomes a trigger for phase G |
+| `/ISSUE.md` | `issues/<NNN>-<slug>/ISSUE.md` | Files a defect (bug / regression) — becomes a trigger for phase G |
 
 ### Meta-skills
 
@@ -113,6 +121,8 @@ ADD treats every step of the software development process as **a stateless AI-ag
 | `/WORKFLOW.md` | `WORKFLOW.md` — captures a conversational workflow into a generalizable document |
 
 ## Workflow
+
+### Bootstrap mode (one-time)
 
 ```
 Input: user intent (one paragraph) — or resume from any existing artifact state
@@ -140,41 +150,69 @@ Input: user intent (one paragraph) — or resume from any existing artifact stat
                                    │
                                    ▼
  F — Design Review Gate            /DESIGN_REVIEW.md
-                                       verdict == pass        → proceed
+                                       verdict == pass        → bootstrap complete
                                        verdict == fix-required →
                                          apply required changes,
                                          regenerate affected skills,
-                                         re-run F.  (Max 3 gate cycles.)
+                                         re-run F.  Stop if not converging.
                                    │
                                    ▼
- G — Decomposition                 /WORK_UNITS.md
-                                   │
-                                   ▼
- H — Per-unit pipeline (sequential per unit; SPEC parallel within a tier)
-     For each unit, in dependency order:
+                            (bootstrap complete — continuous mode begins)
+```
 
-       ┌─ /SPEC.md ──┐ (parallel per tier)
-       ▼             
-       /PLAN.md      ◄──────────────────┐
-       ▼                                │
-       /IMPLEMENTATION.md               │  plan-level issue
-       ▼                                │
+### Continuous mode (per trigger)
+
+```
+Trigger: /ROADMAP.md  →  roadmap/<NNN>-<slug>/ROADMAP.md  (planned: feature/refinement/refactor/chore)
+         /ISSUE.md    →  issues/<NNN>-<slug>/ISSUE.md      (defect: bug/regression)
+                                   │
+                                   ▼
+                       Orchestrator picks up trigger:
+                       - read trigger; resolve open questions via /DECISION.md
+                       - determine area (DOMAIN bounded context)
+                       - allocate u<NN> from units/_NEXT_UNIT_ID
+                       - create units/<area>/u<NN>/
+                                   │
+                                   ▼
+ G — Per-unit pipeline (sequential per unit; multiple triggers / units may parallelize when independent)
+
+       ┌─ /SPEC.md ◄────────────────────────────┐
+       ▼                                        │ spec-level issue
+       /SPEC_REVIEW.md ── prototype-needed ─────┘
+       ▼                                          ┌─ /PROTOTYPE.md (regenerate SPEC)
+       (verdict == pass)                          │
+       ▼                                          │
+       /PLAN.md      ◄──────────────────┐         │
+       ▼                                │ plan    │
+       /IMPLEMENTATION.md               │ issue   │
+       ▼                                │         │
        /CODE_REVIEW.md ─── issues ──────┤  bug   → /IMPLEMENTATION.md
        ▼                                │  design → /PLAN.md
        /VERIFICATION.md ── failures ────┘
        ▼
-       ✓ unit done — next unit
-                                   │ (all units complete)
+       /RECONCILIATION.md
+       (applies edits: own SPEC + selected top-level docs +
+        trigger frontmatter + superseded peer reciprocity)
+       ▼
+       ✓ unit done — orchestrator updates trigger status
+```
+
+### System verification (on demand)
+
+```
+On demand: after a milestone trigger closes; before a release; on user request
+                                   │
                                    ▼
- I — System                        /SYSTEM_VERIFICATION.md
-                                       verdict == pass → done
+ H — System                        /SYSTEM_VERIFICATION.md
+                                       verdict == pass → verified
                                        else → /TRIAGE.md
                                                 │
                                                 ▼
                                        apply artifact updates,
                                        re-enter from the
-                                       appropriate earlier phase.
-                                       (Max 3 stabilization cycles.)
+                                       appropriate earlier phase;
+                                       file new issues/ for newly discovered defects.
+                                       Stop if not converging.
 ```
 
 ### Feedback loops
@@ -192,20 +230,29 @@ Input: user intent (one paragraph) — or resume from any existing artifact stat
 
 ## File Organization
 
-All artifacts live under `add/` at the project root:
+All artifacts live at the project root:
 
 ```
-add/
+<project-root>/
   PROPOSAL.md             USE_CASES.md
   DOMAIN.md               ARCHITECTURE.md
   WEB_IA.md               CLI_IA.md            (surfaces that apply)
   INTERFACES.md           DATA.md              ERRORS.md
   BEHAVIOR.md             QUALITY.md           SECURITY.md         OPERATIONS.md
   DESIGN_REVIEW.md
-  WORK_UNITS.md
-  U01/   SPEC.md  PLAN.md  IMPLEMENTATION.md  CODE_REVIEW.md  VERIFICATION.md
-  U02/   …
-  SYSTEM_VERIFICATION.md  TRIAGE.md
+  SYSTEM_VERIFICATION.md  TRIAGE.md            (when produced)
+
+  units/                                       (per-trigger implementation)
+    _NEXT_UNIT_ID                              counter file
+    <area>/                                    one folder per bounded context
+      u<NN>/
+        SPEC.md  SPEC_REVIEW.md  (PROTOTYPE.md)
+        PLAN.md  IMPLEMENTATION.md
+        CODE_REVIEW.md  VERIFICATION.md  RECONCILIATION.md
+
+  decisions/<D-NNN>-<slug>/DECISION.md         (cross-cutting)
+  roadmap/<NNN>-<slug>/ROADMAP.md              (triggers — planned)
+  issues/<NNN>-<slug>/ISSUE.md                 (triggers — defects)
 ```
 
 ## Philosophy
@@ -224,7 +271,7 @@ add/
 
 | Agent | Description |
 |-------|-------------|
-| `add-orchestrator` | Executes the full 9-phase ADD pipeline autonomously — discovery → foundation → surfaces → contracts → behavior & NFR → design review gate → decomposition → per-unit pipeline → system verification. Supports resuming from any phase by inspecting which artifacts already exist. Manages three feedback loops: per-unit (H), design review (F, max 3 cycles), and stabilization (I, max 3 cycles). |
+| `add-orchestrator` | Executes the ADD pipeline autonomously across both modes. **Bootstrap** (A–F): discovery → foundation → surfaces → contracts → behavior & NFR → design review gate. **Continuous** (G): picks up triggers from `roadmap/` and `issues/`, allocates units in `units/<area>/u<NN>/`, runs G1–G8 per unit, applies frontmatter back-links on triggers and superseded peers. **System verification** (H, on demand): runs cross-cutting scenarios; triages failures back to the originating phase. Supports resuming from any phase by inspecting which artifacts already exist. Manages feedback loops within G (SPEC ↔ PLAN ↔ IMPL ↔ REVIEW ↔ VERIFY), at the F gate, and across H stabilization. |
 
 Agents live in `agents/{agent-name}.md`. They spawn Claude Code instances via CLI to invoke skills, read output files, resolve open questions, and manage retries. Create new orchestration agents with `/ORCHESTRATOR_CREATOR.md`.
 
