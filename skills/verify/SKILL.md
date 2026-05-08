@@ -239,7 +239,7 @@ open_questions: {N}
 (Include this section when e2e testing was attempted or when documenting why it was not feasible.)
 
 **E2E attempted:** {yes / no}
-**Reason (if no):** {e.g., "Server and database are not yet available — this is a Tier 0 foundation unit."}
+**Reason (if no):** {e.g., "Server and database are not yet available — this is a foundation unit that ships before the runtime stack is bootable."}
 
 (If e2e was attempted, list cross-component interactions tested and their results using the same PASS/FAIL/BLOCKED format as scenario results above.)
 
