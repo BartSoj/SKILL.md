@@ -16,7 +16,7 @@ The commonest violation is silently picking an answer for a design-level questio
 ## Inputs
 
 1. **Trigger artifact(s)** (required) — one or more `roadmap/<NNN>-<slug>/ROADMAP.md` (planned work) and/or `issues/<NNN>-<slug>/ISSUE.md` (defects in shipped code) that initiated this unit. Read the body and frontmatter end-to-end: the trigger states what the unit must deliver, its acceptance criteria, and the area it belongs to.
-2. **Unit folder with stub frontmatter** (required) — the orchestrator has pre-created `units/<area>/u<NN>/SPEC.md` with frontmatter populated (`unit`, `area`, `trigger`, and possibly initial `depends_on` / `supersedes` / `related` candidates). The stub frontmatter declares the unit's identity; the SPEC body is what this skill writes. Path: `units/<area>/u<NN>/SPEC.md`.
+2. **Unit folder with stub frontmatter** (required) — the orchestrator has pre-created `units/<area>/u<NN>/SPEC.md` with frontmatter populated (`unit`, `kind`, `area`, `trigger`, `status: in-design`, and possibly initial `depends_on` / `supersedes` / `related` candidates). Empty list fields (`files: []`, `concepts: []`, `owns_ids: []`) are placeholders this skill fills in. The SPEC body is what this skill writes. Path: `units/<area>/u<NN>/SPEC.md`.
 3. **Architecture and design suite** (required) — DOMAIN.md plus the design registries whose stable IDs the SPEC will cite: ARCHITECTURE.md, INTERFACES.md, BEHAVIOR.md, ERRORS.md, QUALITY.md, SECURITY.md, DATA.md, USE_CASES.md. The subset actually loaded is the read set the orchestrator passes — the registries whose IDs the unit touches given its trigger and area.
 4. **Decision documents** (optional, auto-discovered) — any `D-NNN` referenced from the trigger or from any cited design artifact. Discovery mechanism: follow `D-NNN` citations and read each referenced decision at `decisions/D-NNN-slug/DECISION.md`.
 5. **SPEC.md files of related existing units** (when applicable, supplied by orchestrator) — area peers and cross-area related units identified via the orchestrator's spec discovery (folder peers in `units/<area>/`, plus frontmatter grep on overlapping `concepts` and `files`, plus units named in the new unit's stub frontmatter `depends_on` / `supersedes` / `related`). These are the source of truth for the exact type names, function signatures, and interface shapes the new unit may import or rewrite. Read every supplied dependency SPEC end-to-end — truncated reads on dependencies cause silent signature drift.
@@ -82,9 +82,10 @@ Layers that do not apply to this unit get an explicit `None — {reason}` line i
 
 ### Single YAML frontmatter block
 
-- Exactly one YAML frontmatter block at the top of the SPEC.md output, never two — even when refining an existing SPEC, merge into a single block. The block carries every field enumerated in the Output Format template (`artifact`, `last_updated`, `status`, `unit`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`).
+- Exactly one YAML frontmatter block at the top of the SPEC.md output, never two — even when refining an existing SPEC, merge into a single block. The block carries every field enumerated in the Output Format template (`artifact`, `last_updated`, `status`, `unit`, `kind`, `area`, `files`, `concepts`, `owns_ids`, `trigger`, `supersedes`, `superseded_by`, `depends_on`, `related`, `files_specified`, `tests_specified`, `errors_specified`, `estimated_loc_prod`, `estimated_loc_test`, `open_questions`).
+- The orchestrator pre-populates the stub frontmatter with `unit`, `kind`, `area`, `trigger`, and any pre-declared `supersedes` / `depends_on` / `related` candidates before invoking this skill. Preserve those values; populate the remaining fields based on the SPEC body you author. **`concepts`** is 3–8 broad tags drawn from the unit's scope. **`owns_ids`** is every stable ID whose authoritative definition is in this SPEC body — extracted from §§ 3–7 (EP-name in route headers, EVT-name in event refs, SAGA-name / SM-entity-state in behavior, ERR_CODE in § 7, INV-NN / METRIC-name / SLO-name / THREAT-NN / MIT-NN / CFG_NAME if defined here, J-name / T-name for jobs/telemetry).
+- `status` is the unit lifecycle state — set to `in-design` when authoring a fresh SPEC. The orchestrator advances it (`in-progress` after G2 SPEC_REVIEW passes, `implemented` after G7 VERIFICATION passes, `superseded` / `archived` / `abandoned` later). The skill itself does not set `in-progress` or beyond. SPEC-write completion is signalled by `open_questions: 0`; if a missing input (unregistered `ERR_CODE`, ungranted dependency SPEC) prevents authoring, surface it in § 10 and leave `open_questions` non-zero.
 - Every count in the frontmatter matches the body exactly: `files_specified` is the number of file entries in § 9; `tests_specified` is the number of tests in § 8; `errors_specified` is the number of rows in § 7's table; `open_questions` is the number of unresolved questions in § 10 (zero when § 10 reads "All questions resolved."); `estimated_loc_prod` and `estimated_loc_test` are the sums of per-file `Size hint` values for production and test files respectively.
-- `status` is `complete` only when § 10 reads "All questions resolved."; `has_open_questions` when one or more questions remain unresolved; `blocked` only when a missing input (e.g., an unregistered `ERR_CODE`, an ungranted dependency SPEC) prevents authoring the SPEC and the gap is explicit in § 10.
 
 ### No-code rule
 
@@ -100,8 +101,21 @@ The SPEC.md file must follow this exact structure. Top-level sections (§1–§1
 ---
 artifact: SPEC
 last_updated: {YYYY-MM-DD}
-status: {complete | has_open_questions | blocked}
-unit: {U-NN}
+status: {in-design | in-progress | implemented | superseded | archived | abandoned}   # lifecycle state; orchestrator-managed. Set to in-design when authoring a fresh SPEC.
+unit: u{NN}
+kind: {feature | fix | refactor | refinement | chore}
+area: {bounded-context}                           # matches units/<area>/ folder name; one of DOMAIN.md's bounded contexts
+files: [{repo-relative-path}, ...]                # production + test files this unit creates or modifies
+concepts: [{tag}, ...]                            # 3–8 broad concept tags (canonicalized vocabulary)
+owns_ids: [{stable-id}, ...]                      # every stable ID (EP-, EVT-, SAGA-, SM-, ERR_, INV-, METRIC-, SLO-, THREAT-, MIT-, CFG_, J-, T-) authoritatively defined in this SPEC body
+trigger:
+  roadmap: [{id}, ...]
+  issues: [{id}, ...]
+  fresh_intent: {bool}
+supersedes: [{unit-id}, ...]
+superseded_by: [{unit-id}, ...]                   # orchestrator-maintained; leave [] when authoring
+depends_on: [{unit-id}, ...]
+related: [{unit-id}, ...]
 files_specified: {N}
 tests_specified: {N}
 errors_specified: {N}

@@ -272,6 +272,9 @@ After bootstrap, every implementation step traces back to a trigger artifact. Th
 ### 8. Trigger ⇄ unit linking is bidirectional
 A unit's SPEC frontmatter declares its triggers in `trigger.roadmap` and `trigger.issues`. The trigger artifact's `promoted_to_units` lists the units that implement it. Orchestrator maintains both sides of the link mechanically (see § Trigger Lifecycle Management).
 
+### 9. Discovery filters by lifecycle and prefers yq for frontmatter
+Spec discovery (§ Trigger Pickup, Step 5) defaults to active units only — `status: in-progress` or `implemented`. Units with `status: superseded`, `archived`, or `abandoned` stay on disk as historical record but are excluded from the default candidate pool; read them only when you deliberately want history (e.g., walking a `superseded_by` chain). For frontmatter-targeted queries — status, kind, concepts, owns_ids, supersedes graph — prefer `yq --front-matter=extract` over regex; it understands list semantics correctly. `grep` and `ls` remain fine for body searches and quick listings. The principle: **top-level docs are truth; SPECs are workflow artifacts.** When you want to know how the system currently behaves, read DOMAIN/INTERFACES/BEHAVIOR/etc., not old SPECs.
+
 ---
 
 ## How to Invoke Skills
@@ -720,6 +723,7 @@ For each reserved `u<NN>`, create `units/<area>/u<NN>/` with stub frontmatter on
 ---
 artifact: SPEC
 unit: u<NN>
+kind: <feature | fix | refactor | refinement | chore>   # inferred from trigger
 area: <bounded-context>
 status: in-design
 trigger:
@@ -727,13 +731,16 @@ trigger:
   issues: [<id>, ...]
   fresh_intent: false
 files: []                   # populated by G1
-concepts: []
+concepts: []                # populated by G1
+owns_ids: []                # populated by G1 — stable IDs this SPEC will define
 supersedes: []
 superseded_by: []
 depends_on: []
 related: []
 ---
 ```
+
+**Inferring `kind` from the trigger.** Roadmap items declare their own `kind` (`feature | refinement | refactor | chore`) — copy it. Issues always map to `kind: fix` for the unit. When a unit has both a roadmap and an issue trigger, the dominant work wins — typically the roadmap's `kind`.
 
 #### Step 5: Compute spec discovery read set
 
@@ -749,20 +756,95 @@ Before invoking G1, determine the read set for `/SPEC.md`. This is **orchestrato
    - If unit is performance-sensitive: `QUALITY.md`
    - If unit is security-sensitive: `SECURITY.md`
 2. **Trigger artifact(s)** named in the unit's `trigger` frontmatter.
-3. **Area peers** — units in the same `units/<area>/` folder, scored by relevance:
+3. **Area peers** — active units (`status: in-progress` or `implemented`) in the same `units/<area>/` folder, scored by relevance:
    - Concept overlap with the new unit's intended `concepts` (frontmatter).
    - File overlap with the new unit's intended `files`.
+   - Stable-ID overlap with the new unit's intended `owns_ids`.
    - Direct relationship via `depends_on` or `supersedes` from the new unit's frontmatter (if pre-declared).
-4. **Cross-area related units** — discovered via frontmatter grep on overlapping `concepts` and `files`, or named in the new unit's `related` field.
+4. **Cross-area related units** — active units across all areas with overlapping `concepts`, `files`, or `owns_ids`, or named in the new unit's `related` field.
+
+**Status filter is mandatory.** Default discovery includes only units with `status: in-progress` or `implemented`. Units with `status: superseded`, `archived`, or `abandoned` are excluded by default. Read them only when you deliberately want historical context — e.g., walking a `superseded_by` chain to find the active descendant of a cited unit.
 
 Trim the candidate set to ≤ 10 by relevance score. Log the chosen read set so it's auditable.
 
+#### Tool choice: yq for frontmatter, grep / ls for everything else
+
+For frontmatter-targeted queries (status, kind, concepts, owns_ids, supersedes graph, trigger linkage), **prefer `yq --front-matter=extract`**. It parses YAML structurally so it gets list semantics right (`select(.concepts[] == "x")` actually means concept overlap), filters by status correctly, and can compose multi-field predicates a `grep` regex can't express.
+
+For body-level searches (find a SPEC mentioning a function name; find a unit whose body discusses a particular file path that's not in `files`), `grep` and `ls` remain valid and often simpler. Use whichever tool fits the question.
+
+**One yq invocation per file.** `yq --front-matter=extract` parses only the YAML between the first pair of `---` lines and discards the body — but if you point it at multiple files, it tries to parse each subsequent file's body and errors. The canonical shape is therefore a shell loop:
+
 ```bash
-# Concrete discovery commands (orchestrator runs):
-ls units/<area>/                                                    # area peers
-grep -lE 'concepts:.*(token-refresh|session)' units/*/u*/SPEC.md     # concept overlap
-grep -l 'server/modules/auth/session.ts' units/*/u*/SPEC.md          # file overlap
+for f in units/<area>/u*/SPEC.md; do
+  out=$(yq --front-matter=extract '
+    select(.area == "<area>" and (.status == "in-progress" or .status == "implemented")) |
+    [.unit, .kind, (.concepts | join(","))] | @tsv
+  ' "$f" 2>/dev/null)
+  [ -n "$out" ] && printf '%s\t%s\n' "$f" "$out"
+done
 ```
+
+Representative discovery commands:
+
+```bash
+# 1. Active area peers (yq — gets status filter + structured projection right)
+for f in units/<area>/u*/SPEC.md; do
+  yq --front-matter=extract '
+    select(.area == "<area>" and (.status == "in-progress" or .status == "implemented")) |
+    [.unit, .kind, (.concepts | join(","))] | @tsv
+  ' "$f" 2>/dev/null
+done
+
+# 2. Find the active unit owning a stable ID (yq — list semantics on .owns_ids)
+for f in units/*/u*/SPEC.md; do
+  out=$(yq --front-matter=extract '
+    select(.owns_ids[] == "EP-push" and (.status == "in-progress" or .status == "implemented")) | .unit
+  ' "$f" 2>/dev/null)
+  [ -n "$out" ] && printf '%s\t%s\n' "$f" "$out"
+done
+
+# 3. Concept overlap, ranked (yq + shell sort)
+for f in units/*/u*/SPEC.md; do
+  out=$(yq --front-matter=extract '
+    select(
+      (.concepts[] | test("push|content-addressable")) and
+      (.status == "in-progress" or .status == "implemented")
+    ) |
+    [.unit, .area, ([.concepts[] | select(test("push|content-addressable"))] | length)] | @tsv
+  ' "$f" 2>/dev/null)
+  [ -n "$out" ] && printf '%s\t%s\n' "$f" "$out"
+done | sort -k4,4 -nr
+
+# 4. Quick area listing — `ls` is fine
+ls units/<area>/
+
+# 5. Body-text search — `grep` is fine
+grep -l 'server/modules/auth/session.ts' units/*/u*/SPEC.md
+```
+
+**Walking the supersedes chain** (used when a citation references a superseded unit and you want the active descendant):
+
+```bash
+unit="u042"
+while true; do
+  for f in units/*/"$unit"/SPEC.md; do
+    [ -f "$f" ] || continue
+    status=$(yq --front-matter=extract '.status' "$f" 2>/dev/null)
+    next=$(yq --front-matter=extract '.superseded_by[0] // ""' "$f" 2>/dev/null)
+    break
+  done
+  if [ "$status" = "implemented" ] || [ "$status" = "in-progress" ]; then
+    echo "Active: $unit"; break
+  elif [ -z "$next" ]; then
+    echo "Dead end: $unit ($status)"; break
+  else
+    unit="$next"
+  fi
+done
+```
+
+Frontmatter scans via yq are not "reads" in the P4 sense — they parse YAML headers only, so they don't count against the ≤ 10 read budget.
 
 ### G1. `/SPEC.md` → `units/<area>/u<NN>/SPEC.md`
 
@@ -894,6 +976,9 @@ The orchestrator maintains the trigger ⇄ unit graph by mechanical frontmatter 
 - `in-design` → `in-progress`: when G2 SPEC_REVIEW passes.
 - `in-progress` → `implemented`: when G7 VERIFICATION passes.
 - `implemented` → `superseded`: when a later unit declares `supersedes: [this-id]` and reaches `status: implemented`. Orchestrator atomically writes `superseded_by: [<later-unit>]` on this unit's frontmatter as part of that later unit's G8 reconcile.
+- `implemented` → `archived`: orchestrator-set during periodic curation when the unit's contract is no longer relied upon by any active code but no specific successor exists; or G8-set when reconcile detects deletion of all the unit's owned files with no other active unit taking ownership. Terminal state — archived units do not transition further within process scope.
+
+`superseded`, `archived`, and `abandoned` are terminal lifecycle states. All three drop out of default discovery (Concept 9). Their bodies stay on disk as historical record.
 
 ### Bidirectional back-link maintenance
 
@@ -1264,3 +1349,5 @@ The full algorithm you follow:
 - **Never run G8 reconcile before that unit's G7 has passed.** G7 verdict pass is the gate for G8.
 - **Never start phase G work for a trigger without first picking up the trigger explicitly** — either named by the user or chosen from the open pool — and performing administrative setup (read trigger, determine area, allocate unit id, create folder, populate frontmatter back-link, compute read set). Skipping this leaves the trigger ⇄ unit graph inconsistent.
 - **Never advance a trigger or unit status without the corresponding pipeline event having occurred.** Status transitions are mechanical bridge rules, not free-form edits.
+- **Never read a SPEC body to learn the current behavior of the system.** SPECs describe what one unit changed at one point in time — they're workflow artifacts, not living truth. Top-level docs (DOMAIN, ARCHITECTURE, INTERFACES, DATA, BEHAVIOR, ERRORS, QUALITY, SECURITY, OPERATIONS, surface IAs) are the current state; that's what G8 reconcile keeps current. Read SPECs for cross-unit contracts, dependency tracking, audit, or to understand what a particular change introduced — never as a substitute for top-level docs.
+- **Never include `superseded`, `archived`, or `abandoned` units in default spec discovery.** The status filter is mandatory: `(.status == "in-progress" or .status == "implemented")`. Including others by default produces noise that scales with project age and routinely misleads new SPECs by anchoring them to obsolete prior work.

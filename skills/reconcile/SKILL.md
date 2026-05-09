@@ -77,6 +77,8 @@ Items dropped during filtering are recorded in § 3 of the output with the reaso
 
 For every surviving spec-level fix from Phase 2, ask: does this discovery belong in the SPEC alone, or does it imply a change to a top-level design artifact?
 
+**Default is propagate.** When a unit changes externally-visible behavior — a new event, a new endpoint shape, a state-machine transition, a registered error code, an invariant, a metric, a threat, a config var — propagate to the corresponding top-level document. Conservative non-edits accumulate as top-level drift; over time the design suite stops describing the system and SPECs become the de facto truth, which breaks discovery and reuse. Not propagating is the exception, justified explicitly.
+
 A change belongs in a top-level artifact when:
 
 - The discovery is a **general truth about the system** that other units will benefit from.
@@ -124,6 +126,14 @@ Edits are applied directly by this agent. **No subagents. No proposing-for-orche
 6. Log the edit in § 6 Edits Applied with target artifact, section, and a 3-5 line context snippet.
 
 **Step 3: Abandon edits that fail re-read.** If re-reading reveals the edit is incorrect (lands in the wrong section, breaks structure, contains a residual codebase reference, or introduces an inconsistency), revert it and record the abandonment in § 6 Edits Applied with the reason. Do **not** leave a half-applied edit.
+
+**Step 3.5: Apply supersedes-graph reciprocity.** For every unit `u<X>` listed in this unit's `supersedes:` frontmatter:
+
+1. Read `units/<area-of-X>/u<X>/SPEC.md` frontmatter.
+2. Append this unit's id to `u<X>`'s `superseded_by:` list (frontmatter only — body untouched).
+3. Set `u<X>`'s `status:` to `superseded`.
+4. If this unit's `owns_ids` includes IDs previously owned by `u<X>` (ownership transfer), remove those IDs from `u<X>`'s `owns_ids` so the live-owner query (`owns_ids[] == "<ID>" and status == in-progress|implemented`) returns exactly one active result.
+5. Log each peer edit in § 6 Edits Applied.
 
 **Step 4: Compute the verdict.** From the magnitude of edits actually applied:
 
@@ -442,7 +452,7 @@ Reconciliation-level ambiguities only — cases where the skill cannot tell whet
 - **Authoring fresh SPEC content beyond what reconcile applies** — owned by `/SPEC.md` skill (G1) when the orchestrator regenerates a SPEC.
 - **Authoring fresh top-level design content** — owned by the corresponding design skill (`/DOMAIN.md` (B1), `/ARCHITECTURE.md` (B2), `/INTERFACES.md` (D1), `/DATA.md` (D2), `/ERRORS.md` (D3), `/BEHAVIOR.md` (E1), `/QUALITY.md` (E2), `/SECURITY.md` (E3), `/OPERATIONS.md` (E4), `/USE_CASES.md` (A2), surface IAs (C)) when the orchestrator triggers re-entry on a `major-fix` verdict.
 - **Modifying implementation source code** — the implementation has already happened by G7. Reconcile updates docs to match what the system *should* be, not the other way around. If the implementation is wrong, escalate via § 7.
-- **Cross-unit body edits** — sibling unit SPEC bodies are not modified by this reconcile invocation; only this unit's own SPEC body. Frontmatter-only edits to peer units' `superseded_by` (when this unit's SPEC declares `supersedes:` on them) are allowed. If a discrepancy belongs in a sibling SPEC's body, escalate the redirect via § 7.
+- **Cross-unit body edits** — sibling unit SPEC bodies are not modified by this reconcile invocation; only this unit's own SPEC body. Frontmatter-only edits to peer units (`superseded_by`, `status: superseded`, and `owns_ids` ID transfer when this unit's SPEC declares `supersedes:` on them) are allowed and required (Step 3.5). If a discrepancy belongs in a sibling SPEC's body, escalate the redirect via § 7.
 - **System-level failure analysis** — owned by `/TRIAGE.md` (H2) for failures discovered during system verification, not per-unit reconciliation.
 - **Orchestrating re-entry to design phases** — the skill sets the verdict and lists modified artifacts; the orchestrator interprets and schedules re-entry.
 - **Dispatching subagents for any reason** — hard rule from the user's invariant.
