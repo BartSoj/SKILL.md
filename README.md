@@ -273,7 +273,7 @@ All artifacts live at the project root:
 |-------|-------------|
 | `add-orchestrator` | Executes the ADD pipeline autonomously across both modes. **Bootstrap** (A–F): discovery → foundation → surfaces → contracts → behavior & NFR → design review gate. **Continuous** (G): picks up triggers from `roadmap/` and `issues/`, allocates units in `units/<area>/u<NN>/`, runs G1–G8 per unit, applies frontmatter back-links on triggers and superseded peers. **System verification** (H, on demand): runs cross-cutting scenarios; triages failures back to the originating phase. Supports resuming from any phase by inspecting which artifacts already exist. Manages feedback loops within G (SPEC ↔ PLAN ↔ IMPL ↔ REVIEW ↔ VERIFY), at the F gate, and across H stabilization. |
 
-Agents live in `agents/{agent-name}.md`. They spawn Claude Code instances via CLI to invoke skills, read output files, resolve open questions, and manage retries. Create new orchestration agents with `/ORCHESTRATOR_CREATOR.md`.
+Agents live in `agents/{agent-name}.md`. They author dynamic workflows that spawn a subagent per skill, read output files, resolve open questions, and manage feedback loops. Create new orchestration agents with `/ORCHESTRATOR_CREATOR.md`.
 
 ## Meta-Skills
 

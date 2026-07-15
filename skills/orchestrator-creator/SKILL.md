@@ -7,7 +7,7 @@ description: Design and create an orchestration agent that autonomously executes
 
 ## Objective
 
-Given a set of skills and a workflow describing how they connect, produce an orchestration agent as a single flat markdown file — `agents/{agent-name}.md` — that can autonomously execute the workflow end-to-end by spawning Claude Code instances, reading their output files, making decisions, and managing feedback loops. The agent never does the skill's job. It invokes, inspects, decides, and proceeds.
+Given a set of skills and a workflow describing how they connect, produce an orchestration agent as a single flat markdown file — `agents/{agent-name}.md` — that can autonomously execute the workflow end-to-end by authoring dynamic workflows that spawn a subagent per skill, reading their output files, making decisions, and managing feedback loops. The agent never does the skill's job. It invokes, inspects, decides, and proceeds.
 
 ---
 
@@ -51,13 +51,13 @@ ANALYZE.md → DESIGN.md → BUILD.md → TEST.md → DEPLOY.md
 ```
 
 Divide the workflow into phases:
-- **Parallel phases** — multiple independent invocations that can run concurrently. Use Python with `ThreadPoolExecutor`. Common pattern: generating the same document type for multiple independent items.
-- **Sequential phases** — invocations that depend on the previous step's output. Use Bash, one at a time.
+- **Parallel phases** — multiple independent invocations inspected together. One `parallel()` workflow (a barrier over an array of `() => agent(...)` thunks). Common pattern: generating the same document type for multiple independent items.
+- **Sequential phases** — a step whose output the orchestrator inspects before the next runs. Its own single-agent workflow; the orchestrator reads the file and decides before authoring the next.
 
 Rules of thumb:
 - Two invocations reading/writing different files with no overlap → parallel is safe.
 - A skill reads another skill's output → sequential is required.
-- Multiple invocations modify the same codebase → sequential to avoid conflicts.
+- Multiple invocations modify the same codebase → sequential (one agent writes code at a time).
 
 ### Phase 2: Design Decisions
 
@@ -116,9 +116,9 @@ For feedback loops, include failure context inline using XML tags on the same li
 
 ### Phase 3: Write the Agent
 
-Create a single flat file at `agents/{agent-name}.md` with YAML frontmatter and system prompt. Agents are single markdown files directly in the `agents/` directory — the filename (minus `.md`) becomes the agent name. There is no subdirectory and no separate `references/` folder. All reference material (CLI invocation patterns, Python parallel patterns) must be inlined directly in the agent's body.
+Create a single flat file at `agents/{agent-name}.md` with YAML frontmatter and system prompt. Agents are single markdown files directly in the `agents/` directory — the filename (minus `.md`) becomes the agent name. There is no subdirectory and no separate `references/` folder. All reference material (the dynamic-workflow invocation patterns) must be inlined directly in the agent's body.
 
-Read `references/claude-code-cli.md` and `references/claude-code-python.md` from this skill's directory — they contain the invocation patterns to inline into the agent.
+Read `references/dynamic-workflows.md` from this skill's directory — it contains the invocation patterns to inline into the agent.
 
 **Frontmatter:**
 
@@ -127,21 +127,19 @@ Read `references/claude-code-cli.md` and `references/claude-code-python.md` from
 name: {agent-name}
 description: {Action phrase}. Use when asked to "{trigger 1}", "{trigger 2}", "{trigger 3}".
 model: opus
-tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 ---
 ```
 
 - `name` — lowercase, hyphenated identifier. Must match the filename: `agents/{name}.md`
 - `description` — action verb + 3-5 trigger phrases. This is how the plugin matches user intent.
-- `model` — `opus` for orchestration agents (strong reasoning for decisions)
-- `tools` — at minimum: `Bash`, `Read`, `Edit`, `Write`, `Glob`, `Grep`
+- `model` — `opus` for orchestration agents (strong reasoning for decisions); use `opus[1m]` when the orchestrator juggles many artifacts.
 
 **System prompt structure:**
 
 The body follows this structure. Every section is important — omitting one produces an incomplete agent.
 
 ```markdown
-# {Agent Name}
+# {Agent Name} — Autonomous Skill Execution Agent
 
 {One paragraph: who this agent is, what it does, what it never does.}
 
@@ -161,9 +159,11 @@ The body follows this structure. Every section is important — omitting one pro
 
 ## How to Invoke Skills
 
-{CLI patterns for sequential invocation — inlined with full flag reference.
- Python patterns for parallel invocation — inlined with ThreadPoolExecutor
- template, worker function pattern, environment isolation, and failure handling.}
+{Dynamic-workflow patterns — inlined from `references/dynamic-workflows.md`:
+ the `meta` block, `agent()` for one skill, `parallel()`/`pipeline()` for fan-out
+ (with `pipeline()`'s gated-use caveat), single-workflow patterns for mechanical
+ stretches (loop-until-pass, fan-out-then-verify), regeneration/resume, and
+ failure handling.}
 
 ---
 
@@ -171,7 +171,7 @@ The body follows this structure. Every section is important — omitting one pro
 
 {For each phase:
  - Goal (one line)
- - Exact invocation command or Python script template
+ - Exact `agent()` / `parallel()` / `pipeline()` call
  - Output inspection (what to check, what success/failure looks like)
  - Decision logic (proceed, retry, go back)
  - Open question resolution}
@@ -216,21 +216,23 @@ The body follows this structure. Every section is important — omitting one pro
 
 **Include these universal patterns in every agent:**
 
-CLI invocation (sequential):
-```bash
-unset CLAUDECODE && claude -p "<prompt>" --permission-mode bypassPermissions
+Workflow invocation (one skill):
+```javascript
+export const meta = { name: '<step>', description: '<what it does>' }
+await agent(`/SKILL_NAME.md Read <inputs>. Write the output to <output_path>.`)
 ```
-- Always `unset CLAUDECODE` — prevents session conflicts
-- Always `--permission-mode bypassPermissions` — prevents interactive hangs
-- **Skill name and instructions on the same line** — a newline after the skill name prevents triggering. Correct: `"/PLAN.md Read the spec from ..."`. Wrong: `"/PLAN.md\nRead the spec from ..."`
-- Always specify input and output file paths in the prompt
-- Never parse stdout for data
+- The prompt names the skill and instructs the subagent to invoke it via its `Skill` tool — begin with `/SKILL_NAME.md ` and keep the instructions on the same line; use the plugin-qualified id if a bare name doesn't resolve.
+- Always specify input and output file paths in the prompt.
+- Never route on the return value — read the output file.
+- In the agent's phase sections, show the bare `agent()`/`parallel()`/`pipeline()` calls and add one sentence telling the reader to wrap each in a `Workflow` script that begins with a `meta` block (as above).
 
-Python invocation (parallel): write a script using `ThreadPoolExecutor`. Each worker receives a prompt and output path, spawns one `claude` subprocess with `CLAUDECODE` stripped from env, returns a status dict (never raises), validates the output file exists.
+Fan-out (parallel siblings): wrap the per-item `() => agent(...)` thunks in one `parallel()` — a barrier that returns results with failures as `null` (`.filter(Boolean)`). Use `pipeline()` only for a gate-free multi-stage stretch. Pass every item; the runtime caps concurrency at `min(16, cores−2)`.
 
-Output inspection (after every invocation):
-1. File exists? No → retry once
-2. File non-empty? No → retry once
+Mechanical stretches (loop-until-pass, fan-out-then-verify): when a stretch has a mechanical pass/fail check — a lint/test-fix loop, or fanning out then adversarially verifying each finding — codify it inside a single workflow instead of an orchestrator turn. Reserve this for success criteria checkable without the orchestrator's judgment; anything needing the orchestrator to read and decide stays its own workflow.
+
+Output inspection (after every workflow):
+1. File exists? No → re-author that `agent()` once
+2. File non-empty? No → re-author once
 3. Open Questions present? Yes → resolve by editing
 4. Placeholder language? Grep for "appropriate", "relevant", "as needed", "TBD", "TODO", "etc." Found → re-run
 5. Skill-specific checks (verdict, sections, test results)
@@ -247,12 +249,16 @@ Retry limits:
 - After 3 → create `BLOCKED.md`, skip to next item
 - Track attempts per phase, not globally
 
+Regeneration and resume:
+- Feedback by regeneration is a fresh `agent()` with corrected context pointed at the same output path — subagents are always fresh.
+- To resume an interrupted workflow, relaunch it: finished agents return cached results; only the rest re-run.
+
 Error handling:
 
 | Error | Action |
 |---|---|
-| Non-zero exit code | Read stderr. Rate limit → wait 60s, retry. Context too long → summarize inputs, retry. Otherwise → report and skip. |
-| Output file missing | Glob for `*.md` nearby. Found elsewhere → move. Not found → retry with explicit path. |
+| `agent()` returns `null` / artifact missing | Retries were exhausted. Re-author that single `agent()` in a fresh workflow with sharper context. Context too long → summarize inputs / reduce read set. |
+| Output file at wrong path | Glob for `*.md` nearby. Found elsewhere → move. Not found → re-author with explicit path. |
 | Infinite loop (3 cycles same two phases) | Create `BLOCKED.md`, move on. |
 
 ### Phase 4: Validate
@@ -264,7 +270,7 @@ agents/
   {agent-name}.md               # Single flat file, no subdirectory
 ```
 
-Verify that CLI and Python invocation patterns are fully inlined in the "How to Invoke Skills" section — the agent must be self-contained with no external reference dependencies.
+Verify that the dynamic-workflow invocation patterns are fully inlined in the "How to Invoke Skills" section — the agent must be self-contained with no external reference dependencies.
 
 Then validate the agent against the quality checklist.
 
@@ -286,7 +292,6 @@ The skill produces a single flat file at `agents/{agent-name}.md`. The filename 
 name: {agent-name}
 description: {Action phrase}. Use when asked to "{trigger 1}", "{trigger 2}", "{trigger 3}".
 model: opus
-tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 ---
 
 # {Agent Name} — Autonomous Skill Execution Agent
@@ -309,9 +314,11 @@ tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 
 ## How to Invoke Skills
 
-{CLI invocation patterns — inlined with full flag reference, environment isolation,
- session continuation. Python parallel patterns — inlined with ThreadPoolExecutor
- template, worker function, failure handling, debug artifacts.}
+{Dynamic-workflow patterns — inlined from `references/dynamic-workflows.md`:
+ the `meta` block, `agent()` for one skill, `parallel()`/`pipeline()` for fan-out
+ (with `pipeline()`'s gated-use caveat), single-workflow patterns for mechanical
+ stretches (loop-until-pass, fan-out-then-verify), regeneration/resume, and
+ failure handling.}
 
 ---
 
@@ -368,7 +375,7 @@ tools: Bash, Read, Edit, Write, Glob, Grep, KillShell, WebFetch, WebSearch
 - Mapping workflows into phases with parallel/sequential classification
 - Designing decision trees, feedback loops, and retry bounds
 - Defining file organization for orchestration output
-- Inlining CLI and Python invocation patterns from `references/claude-code-cli.md` and `references/claude-code-python.md` into the agent
+- Inlining the dynamic-workflow invocation patterns from `references/dynamic-workflows.md` into the agent
 - Including all universal patterns (output inspection, open question resolution, error handling)
 
 ### Out of scope
@@ -386,18 +393,18 @@ Before the agent is ready, verify:
 
 - [ ] Agent is a single flat file at `agents/{name}.md` — no subdirectory, no separate reference files
 - [ ] Filename (minus `.md`) matches the `name` field in frontmatter
-- [ ] Frontmatter has `name`, `description` (action verb + 3-5 triggers), `model`, and `tools`
+- [ ] Frontmatter has `name`, `description` (action verb + 3-5 triggers) and `model`
 - [ ] Identity paragraph states what the agent does and what it never does
 - [ ] Workflow overview has an ASCII diagram showing all phases and feedback loops
 - [ ] File organization specifies exact paths for every output file
 - [ ] Every skill in the workflow has a corresponding phase section
-- [ ] Every phase section has the exact invocation command (bash or Python)
+- [ ] Every phase section has the exact invocation call (`agent()` / `parallel()` / `pipeline()`)
 - [ ] Every phase section has output inspection criteria specific to that skill
 - [ ] Every feedback loop has a defined trigger, target phase, and context to carry
 - [ ] Retry limits are defined (recommended: 3) and blocked-item behavior is specified
 - [ ] Complete execution flow covers every branch including retries and blocked items
-- [ ] CLI and Python invocation patterns are fully inlined in the agent (not in separate reference files)
+- [ ] The dynamic-workflow invocation patterns are fully inlined in the agent (not in separate reference files)
 - [ ] Open question resolution process is defined
-- [ ] Error handling covers: process failure, missing output, infinite loops
+- [ ] Error handling covers: agent failure (`null`/missing artifact), wrong output path, infinite loops
 - [ ] "What You Never Do" prevents the orchestrator from doing skill work itself
 - [ ] No placeholders, TODOs, or vague language
